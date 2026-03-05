@@ -209,8 +209,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full architecture details.
 | Tooltip | `components/Tooltip.tsx` | - |
 | **Layout** | | |
 | Layout components | `layout/*.tsx` | `layout/layout.test.tsx` |
+| AppShell | `layout/AppShell.tsx` | - |
 | Header | `layout/Header.tsx` | - |
+| MobileDrawer | `layout/MobileDrawer.tsx` | - |
 | ResponsiveModal | `layout/ResponsiveModal.tsx` | - |
+| Sidebar | `layout/Sidebar.tsx` | - |
 | **Domain Cards** | | |
 | Domain types | `domain/types.ts` | `domain/domain.test.tsx` |
 | TaskCard | `domain/TaskCard.tsx` | `domain/domain.test.tsx` |
