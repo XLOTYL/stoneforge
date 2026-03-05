@@ -21,7 +21,25 @@ function quarryWebRoot(): string | undefined {
   return existsSync(webRoot) ? webRoot : undefined;
 }
 
+/**
+ * Pre-registered smithy loader set by packages/smithy/src/bin/sf.ts.
+ * This bypasses module resolution issues under pnpm's strict isolation,
+ * where quarry cannot resolve @stoneforge/smithy at runtime.
+ */
+interface SmithyRegistration {
+  loadServer: () => Promise<{ startSmithyServer: (opts: Record<string, unknown>) => Promise<unknown> }>;
+  webRoot: string;
+}
+
+function getSmithyRegistration(): SmithyRegistration | undefined {
+  return (globalThis as Record<string, unknown>).__stoneforge_smithy as SmithyRegistration | undefined;
+}
+
 function smithyWebRoot(): string | undefined {
+  // Check pre-registered path from smithy's sf.js entry point
+  const reg = getSmithyRegistration();
+  if (reg && existsSync(reg.webRoot)) return reg.webRoot;
+
   try {
     // import.meta.resolve returns a file:// URL for the smithy package entry
     const smithyUrl = import.meta.resolve('@stoneforge/smithy');
@@ -33,7 +51,7 @@ function smithyWebRoot(): string | undefined {
     const webRoot2 = resolve(dirname(smithyPath), '../../web');
     if (existsSync(webRoot2)) return webRoot2;
   } catch {
-    // smithy not installed
+    // smithy not installed and not pre-registered
   }
   return undefined;
 }
@@ -57,15 +75,24 @@ async function startQuarry(options: GlobalOptions): Promise<CommandResult> {
 
 async function startSmithy(options: GlobalOptions): Promise<CommandResult> {
   let startSmithyServer: (opts: Record<string, unknown>) => Promise<unknown>;
-  try {
-    // @ts-ignore — smithy is an optional runtime dependency, may not be installed
-    const mod = await import('@stoneforge/smithy/server');
+
+  // Try pre-registered loader first (set by smithy's sf.js entry point),
+  // then fall back to dynamic import for standalone quarry installs.
+  const reg = getSmithyRegistration();
+  if (reg) {
+    const mod = await reg.loadServer();
     startSmithyServer = mod.startSmithyServer;
-  } catch {
-    return failure(
-      'Smithy is not installed. Install @stoneforge/smithy to use `sf serve smithy`.',
-      ExitCode.GENERAL_ERROR
-    );
+  } else {
+    try {
+      // @ts-ignore — smithy is an optional runtime dependency, may not be installed
+      const mod = await import('@stoneforge/smithy/server');
+      startSmithyServer = mod.startSmithyServer;
+    } catch {
+      return failure(
+        'Smithy is not installed. Install @stoneforge/smithy to use `sf serve smithy`.',
+        ExitCode.GENERAL_ERROR
+      );
+    }
   }
 
   const port = options.port ? parseInt(String(options.port), 10) : 3457;
@@ -110,6 +137,9 @@ export const serveCommand: Command = {
       }
 
       // No target specified — try smithy first, fall back to quarry
+      if (getSmithyRegistration()) {
+        return await startSmithy(options);
+      }
       try {
         // @ts-ignore — smithy is an optional runtime dependency, may not be installed
         await import('@stoneforge/smithy/server');

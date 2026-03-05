@@ -134,6 +134,7 @@ import type {
   FTSSearchOptions,
   FTSSearchResult,
 } from './types.js';
+export type { QuarryAPI };
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,

@@ -3,7 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "../../packages/smithy/web/**", "../../packages/quarry/web/**"]
     },
     "dev": {
       "cache": false,
@@ -21,7 +21,7 @@
     },
     "build:web": {
       "dependsOn": ["^build"],
-      "outputs": ["../../packages/smithy/web/**"]
+      "outputs": ["../../packages/smithy/web/**", "../../packages/quarry/web/**"]
     }
   }
 }
