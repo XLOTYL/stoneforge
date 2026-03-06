@@ -41,6 +41,8 @@ bun packages/quarry/src/bin/sf.ts
 | `sf completion` | Generate shell completion scripts |
 | `sf alias`      | Show command aliases              |
 | `sf install`    | Install stoneforge extensions     |
+| `sf log`        | Show operation log entries        |
+| `sf metrics`    | Show provider metrics             |
 
 ## CRUD Commands
 

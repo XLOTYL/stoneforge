@@ -159,6 +159,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full architecture details.
 | CLI completion | `cli/completion.ts` | - |
 | CLI commands | `cli/commands/*.ts` | `cli/commands/*.bun.test.ts` |
 | CLI embeddings commands | `cli/commands/embeddings.ts` | - |
+| CLI log command | `cli/commands/log.ts` | `cli/commands/log.bun.test.ts` |
+| CLI metrics command | `cli/commands/metrics.ts` | `cli/commands/metrics.bun.test.ts` |
 | CLI progress bar utils | `cli/utils/progress.ts` | `cli/utils/progress.bun.test.ts` |
 | CLI database helpers | `cli/db.ts` | - |
 | CLI command suggest | `cli/suggest.ts` | - |
