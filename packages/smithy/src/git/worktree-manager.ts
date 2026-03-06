@@ -426,10 +426,22 @@ export class WorktreeManagerImpl implements WorktreeManager {
       try {
         await this.removeWorktree(relativePath, { force: true });
       } catch {
-        throw new WorktreeError(
-          `Worktree already exists at ${relativePath} and could not be removed`,
-          'WORKTREE_EXISTS'
-        );
+        // removeWorktree failed — the directory may exist without being a
+        // registered git worktree (e.g., after a failed dependency install
+        // followed by git worktree prune). Fall back to direct removal.
+        try {
+          await this.execGit(['worktree', 'prune']);
+        } catch {
+          // prune is best-effort
+        }
+        try {
+          fs.rmSync(fullPath, { recursive: true, force: true });
+        } catch {
+          throw new WorktreeError(
+            `Worktree already exists at ${relativePath} and could not be removed`,
+            'WORKTREE_EXISTS'
+          );
+        }
       }
     }
 

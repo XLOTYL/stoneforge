@@ -332,6 +332,57 @@ describe('WorktreeManager Operations', () => {
       expect(second.path).toBe(first.path);
     });
 
+    test('cleans up stale directory not registered in git and recreates worktree', async () => {
+      // Simulate: directory exists but git doesn't know about it
+      // (e.g., after a failed dependency install + git worktree prune)
+      const slug = createSlugFromTitle('Stale Dir');
+      const relativePath = generateWorktreePath('charlie', slug);
+      const fullPath = path.join(tempDir, relativePath);
+
+      // Create the directory manually (not via git worktree add)
+      fs.mkdirSync(fullPath, { recursive: true });
+      fs.writeFileSync(path.join(fullPath, 'leftover.txt'), 'stale content');
+
+      // Verify directory exists but git doesn't know about it
+      expect(fs.existsSync(fullPath)).toBe(true);
+      const worktree = await manager.getWorktree(relativePath);
+      expect(worktree).toBeUndefined();
+
+      // createWorktree should succeed by cleaning up the stale directory
+      const result = await manager.createWorktree({
+        agentName: 'charlie',
+        taskId: 'task-stale' as ElementId,
+        taskTitle: 'Stale Dir',
+      });
+
+      expect(fs.existsSync(result.path)).toBe(true);
+      expect(result.worktree.state).toBe('active');
+      expect(result.branchCreated).toBe(true);
+    });
+
+    test('removes registered worktree when directory exists and git knows about it', async () => {
+      // Create a proper worktree first
+      const first = await manager.createWorktree({
+        agentName: 'dave',
+        taskId: 'task-registered' as ElementId,
+        taskTitle: 'Registered',
+      });
+      expect(fs.existsSync(first.path)).toBe(true);
+
+      // Verify git knows about it
+      const existing = await manager.getWorktree(first.worktree.relativePath);
+      expect(existing).toBeDefined();
+
+      // Creating the same worktree again should use the removeWorktree path
+      const second = await manager.createWorktree({
+        agentName: 'dave',
+        taskId: 'task-registered' as ElementId,
+        taskTitle: 'Registered',
+      });
+      expect(fs.existsSync(second.path)).toBe(true);
+      expect(second.path).toBe(first.path);
+    });
+
     test('uses existing branch if it already exists', async () => {
       // Create a branch first
       execSync('git branch existing-branch', { cwd: tempDir, stdio: 'pipe' });
