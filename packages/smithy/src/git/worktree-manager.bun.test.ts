@@ -5,7 +5,11 @@
  * for parallel development in the orchestration system.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, setDefaultTimeout } from 'bun:test';
+
+// Git worktree operations involve disk I/O that can exceed the default 5s timeout,
+// especially on cold first runs. Match the timeout used in merge.bun.test.ts.
+setDefaultTimeout(30_000);
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
