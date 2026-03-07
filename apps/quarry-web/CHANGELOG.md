@@ -1,5 +1,15 @@
 # @stoneforge/quarry-web
 
+## 1.15.0
+
+### Minor Changes
+
+- 1cb7796: Add demo mode toggle to dashboard settings UI for switching all agents to opencode/minimax-m2.5-free
+
+### Patch Changes
+
+- @stoneforge/ui@1.15.0
+
 ## 1.14.0
 
 ### Patch Changes

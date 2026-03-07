@@ -1,5 +1,23 @@
 # @stoneforge/quarry
 
+## 1.15.0
+
+### Minor Changes
+
+- 26adda9: Add `--demo` flag to `sf init` command that bootstraps workspace in demo mode with opencode/minimax-m2.5-free provider
+- d7192a9: Add `demoMode` boolean to workspace configuration with YAML, env var, and programmatic API support
+- fc09654: Auto-create default agents (director, e-worker-1, e-worker-2, m-steward-1) during `sf init`
+
+### Patch Changes
+
+- 3733dbc: Updated serve command to display the actual port when smithy auto-selects a different port due to EADDRINUSE.
+- 129024a: Fix DEMO_MODEL in init.ts to use composite provider/model format (opencode/minimax-m2.5-free) and update display strings to avoid double provider prefix.
+- 24dd116: Check for pre-registered CLI plugins on globalThis before attempting dynamic import, fixing plugin discovery under pnpm strict module isolation.
+- f3ac2ea: Remove CLI short flags (-v, -V) from commands where they were shadowed by global flags (--verbose, --version), making them non-functional. Affected options: `channel create --visibility`, `document show --doc-version`, `playbook show --variables`, `playbook create --variable`.
+  - @stoneforge/core@1.15.0
+  - @stoneforge/storage@1.15.0
+  - @stoneforge/shared-routes@1.15.0
+
 ## 1.14.0
 
 ### Minor Changes

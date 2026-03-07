@@ -1,5 +1,48 @@
 # @stoneforge/smithy
 
+## 1.15.0
+
+### Minor Changes
+
+- d7192a9: Add DemoModeService for enabling/disabling demo mode (opencode/minimax-m2.5-free) with REST API endpoints
+- 3733dbc: Auto-find available port on EADDRINUSE: server now retries up to 20 ports when the requested port is in use, and startSmithyServer returns { services, port } with the actual bound port.
+- 56a13a8: Add `ensureAgentChannel` method to `AgentRegistry` interface to recreate missing agent channels on startup, preventing dispatch failures when channels are lost due to partial registration failures, JSONL sync issues, or crashes.
+
+### Patch Changes
+
+- 583adbb: Apply OpenCode default model (minimax-m2.5-free) when no model is explicitly set in agent metadata, ensuring the --model flag is always passed to the CLI.
+- d55b152: Cap parsed rate limit reset times to 24 hours maximum and prevent setTimeout overflow by clamping delay values to the 32-bit signed integer max
+- 5646042: Consolidate duplicated rate limit pause logic in dispatch daemon into shared isDispatchPaused() method
+- 0a16c8b: Fix corepack ENOENT fallback in worktree dependency installation. When corepack is detected as available but fails with ENOENT at spawn time, the install now falls back to direct package manager invocation instead of failing fatally on both retry attempts.
+- 2c154cb: Fix DEMO_MODEL constant to use composite "opencode/minimax-m2.5-free" format expected by the OpenCode CLI --model flag
+- 27c4ddf: Fix false positive rate limit detection from assistant code discussion. Add 200-character length gate to `isRateLimitMessage()` and replace broad catch-all pattern with specific patterns for known provider rate limit formats.
+- fe971ac: Fix opencode provider to pass cwd and env to SDK correctly, resolving "Failed to change directory" error
+- ab7e924: Fix OpenCode interactive provider to pass initial prompt via --prompt flag instead of positional argument
+- 7f97968: Fix OpenCode session creation error handling: check result.error before result.data on session.create, session.get, and session.abort so actual server errors are surfaced. Pass working directory as query parameter on session.create for newer OpenCode server versions.
+- 5edf7e8: Fix opencode provider: spawn process with cwd directly instead of using SDK's createOpencode
+- 73415f8: Fix opencode provider: remove invalid `wd` config key from OPENCODE_CONFIG_CONTENT that caused ConfigInvalidError on opencode v1.1.64
+- c0c67f5: Fix getRateLimitStatus() returning isPaused: false when executable is rate-limited under a non-'claude' key
+- 24dd116: Pre-register the CLI plugin on globalThis so quarry can discover it without dynamic import under pnpm strict isolation.
+- 7cb4a82: Fix stale worktree directory cleanup in createWorktree to prevent infinite retry loops when a directory exists but is not registered as a git worktree
+- a338d0e: Fix worktree dependency install to respect packageManager field in package.json. When the field is present and corepack is available, the install command is wrapped with corepack to ensure the correct package manager version is used. Falls back to direct invocation when corepack is unavailable.
+- a57ffaa: Pass working directory as positional argument to the opencode CLI command to fix "Failed to change directory" errors in persistent agent sessions.
+- ebfee63: Record rate limit in tracker when hasRecentRateLimitPattern detects rapid-exit sessions, preventing infinite log spam and enabling dashboard banner display
+- eb5beaa: Add safety-net directory removal before git worktree add to prevent "fatal: path already exists" errors when retrying previously failed worktree creation
+- 25bee4b: Skip workers with missing channels during dispatch instead of crashing. When `dispatchService.dispatch` throws "Agent channel not found", the daemon logs a warning, writes to the operation log, and continues to the next worker.
+- c958f7d: Fix wake() to invalidate stale rate limit detection by recording a lastWakeAt timestamp, replacing the grace period and recency check approaches
+- 8031f37: Fix wake() to reset resumeCount for tasks stuck during rate limit period. Workers now resume normally instead of being routed to the recovery steward after a manual wake.
+- Updated dependencies [26adda9]
+- Updated dependencies [d7192a9]
+- Updated dependencies [fc09654]
+- Updated dependencies [3733dbc]
+- Updated dependencies [129024a]
+- Updated dependencies [24dd116]
+- Updated dependencies [f3ac2ea]
+  - @stoneforge/quarry@1.15.0
+  - @stoneforge/core@1.15.0
+  - @stoneforge/storage@1.15.0
+  - @stoneforge/shared-routes@1.15.0
+
 ## 1.14.0
 
 ### Patch Changes
