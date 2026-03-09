@@ -248,7 +248,7 @@ Drops and reinitializes the database. With `--full`, deletes everything and rein
 
 **Dependency types:**
 - **Blocking:** `blocks`, `parent-child`, `awaits`
-- **Associative:** `relates-to`, `references`, `supersedes`, `duplicates`, `caused-by`, `validates`
+- **Associative:** `relates-to`, `references`, `supersedes`, `duplicates`, `caused-by`, `validates`, `mentions`
 - **Attribution:** `authored-by`, `assigned-to`, `approved-by`
 - **Threading:** `replies-to`
 
