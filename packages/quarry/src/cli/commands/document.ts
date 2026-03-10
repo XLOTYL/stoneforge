@@ -830,7 +830,7 @@ Arguments:
   document-id   Document identifier
 
 Options:
-  -V, --doc-version <n>  Show specific version
+  --doc-version <n>      Show specific version
 
 Examples:
   sf document show el-doc123
