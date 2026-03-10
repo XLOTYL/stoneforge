@@ -1,122 +1,124 @@
 ---
-title: "Stoneforge vs Claude Code Teams"
-description: "Compare Stoneforge and Claude Code Teams for multi-agent AI development. Free, open-source, self-hosted alternative."
-competitor: "Claude Code Teams"
+title: "Stoneforge vs Claude Code Agent Teams"
+description: "Compare Stoneforge and Claude Code Agent Teams for multi-agent AI development. Free, open-source, self-hosted alternative."
+competitor: "Claude Code Agent Teams"
 competitorUrl: "https://www.anthropic.com/claude-code"
-differentiator: "The open-source, self-hosted alternative to managed AI coding teams"
+differentiator: "Open-source, agent-agnostic orchestration you can self-host"
 features:
   - category: "Cost & Licensing"
     feature: "Pricing"
     stoneforge: "Free and open-source (Apache 2.0)"
-    competitor: "Per-seat subscription pricing"
+    competitor: "Included with Claude Pro ($20/mo), Team ($25-$150/seat/mo), or Max plans"
   - category: "Cost & Licensing"
     feature: "API costs"
-    stoneforge: "BYO API keys — pay providers directly"
+    stoneforge: "BYO API keys, pay providers directly"
     competitor: "Included in subscription (usage limits apply)"
   - category: "Cost & Licensing"
     feature: "License"
-    stoneforge: "Full open-source, modify freely"
-    competitor: "No — proprietary SaaS"
+    stoneforge: "Open-source (Apache 2.0), modify freely"
+    competitor: "Proprietary"
   - category: "Privacy & Control"
     feature: "Data privacy"
-    stoneforge: "Full control — code never leaves your machine"
-    competitor: "Code processed on Anthropic's servers"
+    stoneforge: "Code stays on your machine, API calls go to your chosen provider"
+    competitor: "Runs locally, but code context is sent to Anthropic's API"
   - category: "Privacy & Control"
-    feature: "Self-hosted"
-    stoneforge: "Yes — runs entirely on your infrastructure"
-    competitor: "No — cloud-hosted SaaS"
+    feature: "Self-hosted orchestration"
+    stoneforge: "Yes, runs entirely on your infrastructure"
+    competitor: "CLI runs locally, but requires Anthropic's API by default"
   - category: "Privacy & Control"
     feature: "Air-gapped environments"
-    stoneforge: "Yes — works fully offline with local models"
-    competitor: "No — requires internet connection"
+    stoneforge: "Yes, works fully offline with local models"
+    competitor: "Possible via third-party proxies (Ollama, LiteLLM), but not officially supported"
   - category: "Agent Architecture"
     feature: "Multi-agent parallelism"
     stoneforge: "Unlimited parallel agents with automatic dispatch"
-    competitor: "Shared workspace with collaborative agents"
+    competitor: "Lead/teammate model with parallel execution and worktree isolation"
   - category: "Agent Architecture"
     feature: "Agent-agnostic"
-    stoneforge: "Yes — Claude Code, Codex, OpenCode, any CLI agent"
-    competitor: "No — locked to Claude models"
+    stoneforge: "Yes, works with Claude Code, Codex, OpenCode, or any CLI agent"
+    competitor: "Claude models only"
   - category: "Agent Architecture"
     feature: "Role-based agents"
-    stoneforge: "Yes — Director, Worker, Steward, Daemon roles"
-    competitor: "Collaborative agents without distinct roles"
+    stoneforge: "Yes, Director, Worker, Steward, Daemon roles"
+    competitor: "Lead/teammate structure with task delegation"
   - category: "Agent Architecture"
-    feature: "Automatic task dispatch"
-    stoneforge: "Yes — Daemon assigns tasks based on priority and dependencies"
-    competitor: "No — manual task assignment"
+    feature: "Task dispatch"
+    stoneforge: "Daemon assigns tasks based on priority, dependencies, and availability"
+    competitor: "Lead assigns tasks; teammates can self-claim available work"
   - category: "Git & Merge"
     feature: "Git worktree isolation"
-    stoneforge: "Yes — each agent works in its own worktree"
-    competitor: "No — shared workspace"
+    stoneforge: "Yes, each agent works in its own worktree"
+    competitor: "Yes, supports --worktree flag and worktree isolation for agents"
   - category: "Git & Merge"
-    feature: "Automatic merge & conflict resolution"
-    stoneforge: "Yes — Steward agents handle merge and review"
-    competitor: "No — manual merge coordination"
+    feature: "Automatic merge & review"
+    stoneforge: "Yes, Steward agents handle merge and review"
+    competitor: "No, branches require manual merging"
   - category: "Git & Merge"
     feature: "Dependency-aware task ordering"
-    stoneforge: "Yes — DAG-based dependency system"
-    competitor: "No built-in dependency tracking"
+    stoneforge: "Yes, DAG-based dependency system"
+    competitor: "Yes, tasks auto-unblock when dependencies complete"
   - category: "Infrastructure"
     feature: "Managed infrastructure"
-    stoneforge: "No — you manage your own setup"
-    competitor: "Yes — fully managed by Anthropic"
+    stoneforge: "No, you manage your own setup"
+    competitor: "Minimal setup, but you manage your own Claude Code installation"
   - category: "Infrastructure"
     feature: "Team collaboration"
     stoneforge: "Local orchestration (team features planned)"
-    competitor: "Yes — built-in team sharing and collaboration"
+    competitor: "Team plan includes admin tools, SSO, and shared billing"
   - category: "Infrastructure"
     feature: "Official vendor support"
-    stoneforge: "Community support + GitHub issues"
-    competitor: "Yes — official Anthropic support"
+    stoneforge: "Community support and GitHub issues"
+    competitor: "Official Anthropic support with Team and Enterprise plans"
 faqItems:
-  - question: "Is there a free alternative to Claude Code Teams?"
-    answer: "Yes. Stoneforge is a free, open-source alternative to Claude Code Teams. It provides multi-agent orchestration, automatic task dispatch, and git merge management — all self-hosted on your own infrastructure. You bring your own API keys and pay providers directly, with no per-seat subscription fees."
-  - question: "Can I self-host Claude Code for teams?"
-    answer: "Claude Code itself doesn't offer a self-hosted option for team features. Stoneforge provides a self-hosted orchestration layer that works with Claude Code (and other AI coding agents) to give you team-like multi-agent capabilities while keeping everything on your own infrastructure."
+  - question: "Is there a free alternative to Claude Code Agent Teams?"
+    answer: "Stoneforge is a free, open-source option. It provides multi-agent orchestration, task dispatch, and git merge management, all self-hosted. You bring your own API keys and pay providers directly instead of paying per-seat subscription fees. The trade-off is that you manage the infrastructure yourself."
+  - question: "Can I self-host multi-agent orchestration with Claude Code?"
+    answer: "Claude Code Agent Teams runs locally as a CLI tool, but relies on Anthropic's API for model inference. Stoneforge provides a self-hosted orchestration layer that can coordinate Claude Code alongside other agents, giving you more control over the full stack."
   - question: "How do I run multiple Claude Code agents at once?"
-    answer: "Stoneforge orchestrates multiple Claude Code instances in parallel using isolated git worktrees. You create tasks, and Stoneforge's Daemon automatically dispatches them to available agents. Each agent works independently, and Steward agents handle merging the results back together."
-  - question: "What's the difference between Claude Code Teams and Stoneforge?"
-    answer: "Claude Code Teams is Anthropic's managed SaaS product for collaborative AI coding. Stoneforge is an open-source orchestration layer that runs locally and coordinates multiple AI agents (including Claude Code) in parallel. Key differences: Stoneforge is free, self-hosted, agent-agnostic, and uses isolated git worktrees for conflict-free parallel work."
+    answer: "Claude Code's Agent Teams feature lets one lead session coordinate multiple teammate sessions, each working in isolated git worktrees. Stoneforge takes a different approach with persistent roles (Director, Worker, Steward, Daemon) and a task queue that automatically dispatches work to available agents."
+  - question: "What's the difference between Claude Code Agent Teams and Stoneforge?"
+    answer: "Claude Code Agent Teams is Anthropic's built-in multi-agent feature where a lead session coordinates teammates. Stoneforge is an open-source orchestration layer with a more structured role system, agent-agnostic design (it works with Claude Code, Codex, and other CLI agents), and automatic merge handling via Steward agents."
   - question: "Does Stoneforge work with Claude Code?"
-    answer: "Yes. Stoneforge is agent-agnostic and works with Claude Code as one of its supported agents. You can configure Stoneforge to use Claude Code for all workers, or mix different agents — for example, Claude Code for complex tasks and Codex for simpler ones."
-  - question: "Is Stoneforge as good as Claude Code Teams for team development?"
-    answer: "They solve different problems. Claude Code Teams excels at managed collaborative coding with official Anthropic support. Stoneforge excels at parallel multi-agent orchestration with full local control. If you need managed infrastructure and team collaboration features, Claude Code Teams may be better. If you need unlimited parallel agents, agent flexibility, and self-hosting, choose Stoneforge."
-verdict: "Choose Stoneforge when you need full control over your AI development infrastructure. It's ideal for teams that want unlimited parallel agents, data privacy (code never leaves your machines), agent flexibility (use any CLI-based coding agent), and zero per-seat costs. Stoneforge's dependency-aware task dispatch and automatic merge resolution make it especially powerful for large codebases and complex projects."
+    answer: "Yes. Stoneforge is agent-agnostic and supports Claude Code as one of its agents. You can use Claude Code for all workers, or mix agents based on task needs."
+  - question: "Which should I choose for team development?"
+    answer: "It depends on what you need. Claude Code Agent Teams is simpler to set up, has official Anthropic support, and integrates with Claude's Team plan for admin tools and billing. Stoneforge gives you agent flexibility, self-hosted control, and automatic merge handling, but requires more setup and is community-supported. If your team already uses the Claude ecosystem, Agent Teams is the path of least resistance. If you want vendor independence or need to mix AI providers, try Stoneforge."
+verdict: "Consider Stoneforge when you want agent flexibility (not just Claude), full self-hosted control, or automatic merge handling via Steward agents. It's a good fit for teams that want to mix AI providers, need to work in air-gapped environments, or prefer open-source tooling they can modify. Keep in mind that Stoneforge is a newer project with community support, while Claude Code Agent Teams has the backing of Anthropic's infrastructure and support team."
 order: 1
 ---
 
-## When parallel orchestration beats collaborative coding
+## Two approaches to multi-agent development
 
-Claude Code Teams and Stoneforge represent two fundamentally different approaches to scaling AI-assisted development.
+Claude Code Agent Teams and Stoneforge both coordinate multiple AI agents working in parallel on a codebase. They differ in scope and philosophy.
 
-**Claude Code Teams** gives your team a shared, managed workspace where Claude agents collaborate on code. It's polished, integrated, and backed by Anthropic's infrastructure. You get a smooth experience without managing anything yourself.
+**Claude Code Agent Teams** is an experimental feature built into Claude Code (requires opt-in via `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`). A lead session breaks work into tasks, assigns them to teammate sessions, and synthesizes results. Each teammate gets its own context window and can work in an isolated git worktree. It's tightly integrated with Claude's models and ecosystem.
 
-**Stoneforge** takes a different approach: it's an orchestration layer that coordinates multiple independent AI agents working in parallel. Each agent gets its own isolated git worktree, works on its own task, and a Steward agent handles merging everything together.
+**Stoneforge** is a standalone orchestration layer. It coordinates agents from different providers (Claude Code, Codex, OpenCode, or others) through a structured role system: Directors plan work, Workers execute tasks, Stewards handle merge and review, and Daemons dispatch tasks automatically. It's open-source and runs entirely on your infrastructure.
 
-### The multi-agent advantage
+### Where they overlap
 
-The core architectural difference matters most when you need to scale. With Stoneforge, you can dispatch 10 tasks and have 10 agents working simultaneously — each in complete isolation. There's no shared workspace, no stepping on each other's code, and no waiting for one agent to finish before another starts.
+Both support git worktree isolation for parallel work. Both have task dispatch (Claude Code's lead assigns tasks; Stoneforge's Daemon distributes them based on priority and dependencies). Both track task dependencies so blocked work unblocks automatically.
+
+### Where they differ
+
+**Agent flexibility.** Stoneforge is agent-agnostic. You can use Claude Code for some tasks, Codex for others, or a local model via OpenCode for air-gapped work. Claude Code Agent Teams only works with Claude models.
+
+**Merge workflow.** Stoneforge's Steward agents automatically review and merge completed work back to the main branch. With Claude Code Agent Teams, each teammate commits to its own branch, but merging is manual.
+
+**Infrastructure.** Claude Code Agent Teams requires minimal setup since it's built into the CLI you already have. Stoneforge requires installing and configuring the orchestration layer, managing worktrees, and running the Daemon process.
+
+**Support and maturity.** Claude Code is backed by Anthropic with official support channels. Stoneforge is a newer open-source project with community support via GitHub issues.
 
 ```bash
-# Create a plan with parallel tasks
+# Example: dispatch tasks with Stoneforge
 sf plan create --title "Sprint 22 Features"
 
-# These tasks get dispatched to separate agents automatically
 sf task create --title "Add OAuth2 integration" --plan "Sprint 22 Features"
 sf task create --title "Refactor payment service" --plan "Sprint 22 Features"
 sf task create --title "Build notification system" --plan "Sprint 22 Features"
 sf task create --title "Add API rate limiting" --plan "Sprint 22 Features"
+# These get dispatched to available agents automatically
 ```
 
-### Your code stays on your machine
-
-Stoneforge runs entirely on your infrastructure. Your source code, prompts, and context never leave your machine. For teams in regulated industries, working with proprietary code, or simply wanting full control — this is non-negotiable.
-
-### Use any agent you want
-
-Stoneforge isn't locked to a single AI provider. Use Claude Code for complex architectural work, Codex for rapid prototyping, or OpenCode with local models for air-gapped environments. Mix and match based on what each task needs.
-
 <Fragment slot="competitor-verdict">
-  <p>Choose Claude Code Teams when you want a fully managed experience with zero infrastructure overhead. It's the right choice if your team values official Anthropic support, built-in team collaboration features, and a polished UI. Claude Code Teams is also simpler to get started with — no self-hosting or configuration required.</p>
+  <p>Choose Claude Code Agent Teams when you want a multi-agent setup that works out of the box with minimal configuration. It's the right choice if your team is already in the Claude ecosystem, values official Anthropic support, and doesn't need to mix AI providers. The Team plan adds admin controls, SSO, and centralized billing for organizations. If you don't need agent-agnostic orchestration or self-hosted infrastructure, Agent Teams is simpler to get started with.</p>
 </Fragment>
