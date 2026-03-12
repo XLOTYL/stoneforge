@@ -601,6 +601,10 @@ export interface AggregatedProviderMetrics {
   totalInputTokens: number;
   /** Total output tokens */
   totalOutputTokens: number;
+  /** Total cache read tokens */
+  totalCacheReadTokens: number;
+  /** Total cache creation tokens */
+  totalCacheCreationTokens: number;
   /** Total tokens (input + output) */
   totalTokens: number;
   /** Number of sessions */

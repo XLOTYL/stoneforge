@@ -336,6 +336,8 @@ export async function initializeServices(options: ServicesOptions = {}): Promise
       let sessionOutcome: MetricOutcome = 'completed';
       let sessionInputTokens = 0;
       let sessionOutputTokens = 0;
+      let sessionCacheReadTokens = 0;
+      let sessionCacheCreationTokens = 0;
       let sessionModel: string | undefined;
 
       // Resolved task ID cache (looked up once, reused for all upserts)
@@ -368,6 +370,8 @@ export async function initializeServices(options: ServicesOptions = {}): Promise
             taskId,
             inputTokens: sessionInputTokens,
             outputTokens: sessionOutputTokens,
+            cacheReadTokens: sessionCacheReadTokens,
+            cacheCreationTokens: sessionCacheCreationTokens,
             durationMs,
             outcome: sessionOutcome,
           });
@@ -379,6 +383,8 @@ export async function initializeServices(options: ServicesOptions = {}): Promise
             sessionId: session.id,
             inputTokens: sessionInputTokens,
             outputTokens: sessionOutputTokens,
+            cacheReadTokens: sessionCacheReadTokens,
+            cacheCreationTokens: sessionCacheCreationTokens,
             durationMs,
             outcome: sessionOutcome,
           });
@@ -398,10 +404,12 @@ export async function initializeServices(options: ServicesOptions = {}): Promise
         // Accumulate tokens from assistant events (each BetaMessage has usage)
         // This provides a running total in case the session exits without a result event
         if (event.type === 'assistant') {
-          const rawMsg = event.raw?.message as { usage?: { input_tokens?: number; output_tokens?: number }; model?: string } | undefined;
+          const rawMsg = event.raw?.message as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }; model?: string } | undefined;
           if (rawMsg?.usage) {
             sessionInputTokens += rawMsg.usage.input_tokens ?? 0;
             sessionOutputTokens += rawMsg.usage.output_tokens ?? 0;
+            sessionCacheReadTokens += rawMsg.usage.cache_read_input_tokens ?? 0;
+            sessionCacheCreationTokens += rawMsg.usage.cache_creation_input_tokens ?? 0;
           }
           // Capture model from the first assistant message that has it
           if (rawMsg?.model && !sessionModel) {
@@ -422,12 +430,25 @@ export async function initializeServices(options: ServicesOptions = {}): Promise
           }
 
           // Extract model from modelUsage keys (Record<string, ModelUsage>)
-          const modelUsage = event.raw?.modelUsage as Record<string, unknown> | undefined;
+          // Also reconcile cache tokens from modelUsage (SDK camelCase format)
+          const modelUsage = event.raw?.modelUsage as Record<string, { cacheReadInputTokens?: number; cacheCreationInputTokens?: number } | unknown> | undefined;
           if (modelUsage) {
             const models = Object.keys(modelUsage);
             if (models.length > 0 && !sessionModel) {
               sessionModel = models[0];
             }
+            // Sum cache tokens across all models in the result
+            let resultCacheReadTokens = 0;
+            let resultCacheCreationTokens = 0;
+            for (const model of models) {
+              const mu = modelUsage[model] as { cacheReadInputTokens?: number; cacheCreationInputTokens?: number } | undefined;
+              if (mu) {
+                resultCacheReadTokens += mu.cacheReadInputTokens ?? 0;
+                resultCacheCreationTokens += mu.cacheCreationInputTokens ?? 0;
+              }
+            }
+            sessionCacheReadTokens = Math.max(sessionCacheReadTokens, resultCacheReadTokens);
+            sessionCacheCreationTokens = Math.max(sessionCacheCreationTokens, resultCacheCreationTokens);
           }
 
           sessionOutcome = 'completed';
