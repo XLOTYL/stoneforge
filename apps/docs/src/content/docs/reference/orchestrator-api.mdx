@@ -214,6 +214,7 @@ interface OrchestratorTaskMeta {
 | `test_failed` | Tests failed |
 | `failed` | Merge failed (other reason) |
 | `not_applicable` | No merge needed |
+| `awaiting_approval` | PR created, waiting for human approval/merge |
 
 ---
 
@@ -233,6 +234,25 @@ type SessionState = 'idle' | 'running' | 'suspended' | 'terminated';
 ---
 
 ## Agent types
+
+### AgentEntity
+
+A typed wrapper for entities that have agent metadata:
+
+```typescript
+import { getAgentMetadata } from '@stoneforge/smithy';
+
+// AgentEntity extends Entity with typed agent metadata
+interface AgentEntity extends Entity {
+  metadata: { agent: AgentMetadata } & Record<string, unknown>;
+}
+
+// Extract agent metadata from an entity (returns undefined if not an agent)
+const agentMeta = getAgentMetadata(entity);
+if (agentMeta) {
+  console.log(agentMeta.agentRole);  // 'director' | 'worker' | 'steward'
+}
+```
 
 ### AgentRole
 
