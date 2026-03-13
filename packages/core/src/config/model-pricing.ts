@@ -10,7 +10,7 @@
  * the CLI (quarry) and the orchestrator (smithy).
  */
 
-import pricingData from './model-pricing.json';
+import pricingData from './model-pricing.json' with { type: 'json' };
 
 // ============================================================================
 // Types
