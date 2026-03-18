@@ -1046,7 +1046,8 @@ Valid status values:
   conflict        Merge conflict detected
   test_failed     Tests failed, needs attention
   failed          Merge failed for other reason
-  not_applicable  No merge needed (issue already fixed on master)
+  not_applicable      No merge needed (issue already fixed on master)
+  awaiting_approval   PR created, waiting for human approval/merge
 
 Examples:
   sf task merge-status el-abc123 merged
