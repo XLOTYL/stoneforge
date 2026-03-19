@@ -407,7 +407,7 @@ export async function mergeBranch(options: MergeBranchOptions): Promise<MergeBra
     cwd: workspaceRoot, encoding: 'utf8',
   });
 
-  let mergeResult: MergeBranchResult;
+  let mergeResult: MergeBranchResult = { success: false, hasConflict: false, error: 'Merge did not complete' };
 
   try {
     let commitHash: string;
@@ -427,16 +427,42 @@ export async function mergeBranch(options: MergeBranchOptions): Promise<MergeBra
     }
 
     // 6. Push to remote (skip when local-only or push disabled)
+    let pushFailed = false;
     if (autoPush && !localOnly) {
       try {
         await execGitSafe(`push origin HEAD:${targetBranch}`, mergeDir, workspaceRoot);
+
+        // Verify push landed on remote
+        try {
+          await execAsync(`git fetch origin ${targetBranch}`, { cwd: workspaceRoot, encoding: 'utf8' });
+          // git merge-base --is-ancestor exits 0 if commitHash is ancestor of origin/targetBranch
+          await execAsync(`git merge-base --is-ancestor ${commitHash} origin/${targetBranch}`, {
+            cwd: workspaceRoot, encoding: 'utf8',
+          });
+        } catch {
+          pushFailed = true;
+          mergeResult = {
+            success: false,
+            commitHash,
+            hasConflict: false,
+            error: `Merge succeeded locally and push appeared to succeed, but post-push verification failed: commit ${commitHash} is not on origin/${targetBranch}. The merge commit may not have been delivered to the remote. Retry the push or re-merge.`,
+          };
+        }
       } catch (pushError) {
         const pushErrorMsg = pushError instanceof Error ? pushError.message : String(pushError);
-        console.warn(`[git/merge] Failed to push to remote: ${pushErrorMsg}`);
+        pushFailed = true;
+        mergeResult = {
+          success: false,
+          commitHash,
+          hasConflict: false,
+          error: `Merge succeeded locally but push to origin failed: ${pushErrorMsg}. The merge commit (${commitHash}) was not delivered to the remote. Retry the push or re-merge.`,
+        };
       }
     }
 
-    mergeResult = { success: true, commitHash, hasConflict: false };
+    if (!pushFailed) {
+      mergeResult = { success: true, commitHash, hasConflict: false };
+    }
   } catch (error) {
     const execError = error as { stdout?: string; stderr?: string; message?: string };
     const output = (execError.stdout ?? '') + (execError.stderr ?? '') + (execError.message ?? '');

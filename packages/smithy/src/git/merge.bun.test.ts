@@ -313,6 +313,39 @@ describe('mergeBranch', () => {
     }
   });
 
+  test('returns failure when push to remote fails', async () => {
+    const { repoDir, remoteDir } = await setup();
+    try {
+      await execAsync('git checkout -b feature/push-fail', { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, 'pushfail.ts'), 'export const pf = 1;\n');
+      await execAsync('git add . && git commit -m "Push fail feature"', { cwd: repoDir });
+      await execAsync('git push origin feature/push-fail', { cwd: repoDir });
+      await execAsync('git checkout main', { cwd: repoDir });
+
+      // Add a pre-receive hook to the bare remote that rejects all pushes
+      const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
+      fs.writeFileSync(hookPath, '#!/bin/sh\nexit 1\n');
+      fs.chmodSync(hookPath, 0o755);
+
+      const result = await mergeBranch({
+        workspaceRoot: repoDir,
+        sourceBranch: 'feature/push-fail',
+        targetBranch: 'main',
+        commitMessage: 'Should fail push',
+        syncLocal: false,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.hasConflict).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.error).toContain('push');
+      // The merge commit should still be reported for diagnostics
+      expect(result.commitHash).toBeDefined();
+    } finally {
+      cleanup(repoDir, remoteDir);
+    }
+  });
+
   test('skips preflight when disabled', async () => {
     const { repoDir, remoteDir } = await setup();
     try {
