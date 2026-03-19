@@ -35,7 +35,7 @@ import type { WorkflowPresetContext } from '../prompts/index.js';
 import { getValue } from '@stoneforge/quarry';
 import type { WorkflowPreset, AgentPermissionModel } from '@stoneforge/quarry';
 import { AUTO_ALLOWED_TOOLS, AUTO_ALLOWED_SF_COMMANDS } from '../permissions/types.js';
-import { detectTargetBranch } from '../git/merge.js';
+import { detectTargetBranch, ensureTargetBranchExists } from '../git/merge.js';
 import { createLogger } from '../utils/logger.js';
 import { isRateLimitMessage, parseRateLimitResetTime, getFallbackResetTime } from '../utils/rate-limit-parser.js';
 
@@ -2848,12 +2848,20 @@ export class DispatchDaemonImpl implements DispatchDaemon {
    */
   private async createWorktreeForTask(worker: AgentEntity, task: Task): Promise<CreateWorktreeResult> {
     const orcMeta = getOrchestratorTaskMeta(task.metadata as Record<string, unknown> | undefined);
+    const targetBranch = orcMeta?.targetBranch;
+
+    // Ensure the target branch exists before creating worktree from it.
+    // Without this, worktree creation fails if the branch doesn't exist locally or on remote.
+    if (targetBranch) {
+      await ensureTargetBranchExists(this.config.projectRoot, targetBranch);
+    }
+
     return this.worktreeManager.createWorktree({
       agentName: worker.name,
       taskId: task.id,
       taskTitle: task.title,
       installDependencies: true,
-      baseBranch: orcMeta?.targetBranch,
+      baseBranch: targetBranch,
     });
   }
 
