@@ -794,9 +794,10 @@ async function taskSyncHandler(
       return failure(syncResult.message, ExitCode.GENERAL_ERROR);
     }
 
-    // Detect the default branch (main or master)
-    const defaultBranch = await worktreeManager.getDefaultBranch();
-    const remoteBranch = `origin/${defaultBranch}`;
+    // Use the task's targetBranch if set, otherwise fall back to default branch
+    const targetBranch = orchestratorMeta?.targetBranch as string | undefined;
+    const syncBranch = targetBranch ?? await worktreeManager.getDefaultBranch();
+    const remoteBranch = `origin/${syncBranch}`;
 
     // Attempt to merge
     try {
