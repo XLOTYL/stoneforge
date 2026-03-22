@@ -77,7 +77,7 @@ describe('Agent Command Structure', () => {
 
     it('should have all registration options', () => {
       expect(agentRegisterCommand.options).toBeDefined();
-      expect(agentRegisterCommand.options!.length).toBe(10);
+      expect(agentRegisterCommand.options!.length).toBe(11);
 
       // Required role option
       const roleOption = agentRegisterCommand.options![0];
@@ -128,6 +128,11 @@ describe('Agent Command Structure', () => {
       const modelOption = agentRegisterCommand.options![9];
       expect(modelOption.name).toBe('model');
       expect(modelOption.hasValue).toBe(true);
+
+      // Target branch option
+      const targetBranchOption = agentRegisterCommand.options![10];
+      expect(targetBranchOption.name).toBe('target-branch');
+      expect(targetBranchOption.hasValue).toBe(true);
     });
 
     it('should have --model option with correct properties', () => {
