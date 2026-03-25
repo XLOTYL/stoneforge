@@ -405,12 +405,7 @@ export function AppShell() {
     });
   }, [workflowPreset.preset, directorAgent]);
 
-  const enabledStepCount = useMemo(
-    () => tourSteps.filter((s) => s.enabled !== false).length,
-    [tourSteps]
-  );
-
-  const onboardingTour = useOnboardingTour(enabledStepCount);
+  const onboardingTour = useOnboardingTour(tourSteps);
 
   // Auto-start tour on first visit after preset is configured
   const routerState2 = useRouterState();
@@ -809,6 +804,7 @@ export function AppShell() {
         onNext={onboardingTour.next}
         onPrev={onboardingTour.prev}
         onSkip={onboardingTour.skip}
+        onSkipSection={onboardingTour.skipSection}
       />
     </div>
   );

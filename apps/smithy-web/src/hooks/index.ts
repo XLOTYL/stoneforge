@@ -79,7 +79,7 @@ export type { UseImageDropConfig, UseImageDropReturn } from './useImageDrop';
 
 // Onboarding tour hook
 export { useOnboardingTour } from './useOnboardingTour';
-export type { OnboardingTourState } from './useOnboardingTour';
+export type { OnboardingTourState, TourSection } from './useOnboardingTour';
 
 // Provider installation check hook
 export { useProviderCheck } from './useProviderCheck';
