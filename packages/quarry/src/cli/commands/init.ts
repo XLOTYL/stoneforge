@@ -419,10 +419,18 @@ function renderPresetMenu(
   const { stdout } = process;
 
   if (!isInitialRender) {
-    // Move cursor up to overwrite previous menu lines
-    for (let i = 0; i < presets.length; i++) {
-      stdout.write('\x1B[F\x1B[2K');
+    // Calculate actual physical lines consumed (accounting for terminal wrapping)
+    const cols = stdout.columns || 80;
+    let physicalLines = 0;
+    for (const p of presets) {
+      const label = p.charAt(0).toUpperCase() + p.slice(1);
+      const line = `    ${label.padEnd(10)}— ${PRESET_DESCRIPTIONS[p]}`;
+      physicalLines += Math.ceil(line.length / cols);
     }
+    // Move cursor up by the total physical line count
+    stdout.write(`\x1B[${physicalLines}A`);
+    // Clear from cursor to end of screen (handles any leftover wrapped content)
+    stdout.write('\x1B[J');
   }
 
   for (let i = 0; i < presets.length; i++) {
