@@ -787,79 +787,81 @@ export function CreateAgentDialog({
                       data-testid="agent-tags"
                     />
                   </div>
-                  {hasMultipleProviders && (
+                  <div data-testid="agent-provider-model-section" className="space-y-3">
+                    {hasMultipleProviders && (
+                      <div className="space-y-1">
+                        <label htmlFor="agent-provider" className="text-xs font-medium text-[var(--color-text-secondary)]">
+                          Provider
+                        </label>
+                        <div className="relative">
+                          <select
+                            id="agent-provider"
+                            value={form.provider}
+                            onChange={e => handleProviderChange(e.target.value)}
+                            className="
+                              w-full px-3 py-1.5 pr-8
+                              text-sm
+                              bg-[var(--color-surface)]
+                              border border-[var(--color-border)]
+                              rounded-lg
+                              appearance-none
+                              focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30
+                            "
+                            data-testid="agent-provider"
+                          >
+                            {providers.map(p => (
+                              <option key={p.name} value={p.name} disabled={!p.available}>
+                                {getProviderLabel(p.name)}{!p.available ? ' (not installed)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)] pointer-events-none" />
+                        </div>
+                      </div>
+                    )}
+                    {/* Model selector */}
                     <div className="space-y-1">
-                      <label htmlFor="agent-provider" className="text-xs font-medium text-[var(--color-text-secondary)]">
-                        Provider
+                      <label htmlFor="agent-model" className="text-xs font-medium text-[var(--color-text-secondary)]">
+                        Model
                       </label>
                       <div className="relative">
-                        <select
-                          id="agent-provider"
-                          value={form.provider}
-                          onChange={e => handleProviderChange(e.target.value)}
-                          className="
-                            w-full px-3 py-1.5 pr-8
-                            text-sm
-                            bg-[var(--color-surface)]
-                            border border-[var(--color-border)]
-                            rounded-lg
-                            appearance-none
-                            focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30
-                          "
-                          data-testid="agent-provider"
-                        >
-                          {providers.map(p => (
-                            <option key={p.name} value={p.name} disabled={!p.available}>
-                              {getProviderLabel(p.name)}{!p.available ? ' (not installed)' : ''}
+                        {modelsLoading ? (
+                          <div className="flex items-center gap-2 py-1.5 text-xs text-[var(--color-text-tertiary)]">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Loading models...
+                          </div>
+                        ) : (
+                          <select
+                            id="agent-model"
+                            value={form.model}
+                            onChange={e => setForm(prev => ({ ...prev, model: e.target.value }))}
+                            disabled={!form.provider}
+                            className="
+                              w-full px-3 py-1.5 pr-8
+                              text-sm
+                              bg-[var(--color-surface)]
+                              border border-[var(--color-border)]
+                              rounded-lg
+                              appearance-none
+                              focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30
+                              disabled:opacity-50 disabled:cursor-not-allowed
+                            "
+                            data-testid="agent-model"
+                          >
+                            <option value="">
+                              {defaultModel ? `Default (${defaultModel.displayName})` : '(Default)'}
                             </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)] pointer-events-none" />
+                            {models.map(m => (
+                              <option key={m.id} value={m.id}>
+                                {m.providerName ? `${m.displayName}  —  ${m.providerName}` : m.displayName}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {!modelsLoading && (
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)] pointer-events-none" />
+                        )}
                       </div>
-                    </div>
-                  )}
-                  {/* Model selector */}
-                  <div className="space-y-1">
-                    <label htmlFor="agent-model" className="text-xs font-medium text-[var(--color-text-secondary)]">
-                      Model
-                    </label>
-                    <div className="relative">
-                      {modelsLoading ? (
-                        <div className="flex items-center gap-2 py-1.5 text-xs text-[var(--color-text-tertiary)]">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          Loading models...
-                        </div>
-                      ) : (
-                        <select
-                          id="agent-model"
-                          value={form.model}
-                          onChange={e => setForm(prev => ({ ...prev, model: e.target.value }))}
-                          disabled={!form.provider}
-                          className="
-                            w-full px-3 py-1.5 pr-8
-                            text-sm
-                            bg-[var(--color-surface)]
-                            border border-[var(--color-border)]
-                            rounded-lg
-                            appearance-none
-                            focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30
-                            disabled:opacity-50 disabled:cursor-not-allowed
-                          "
-                          data-testid="agent-model"
-                        >
-                          <option value="">
-                            {defaultModel ? `Default (${defaultModel.displayName})` : '(Default)'}
-                          </option>
-                          {models.map(m => (
-                            <option key={m.id} value={m.id}>
-                              {m.providerName ? `${m.displayName}  —  ${m.providerName}` : m.displayName}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      {!modelsLoading && (
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)] pointer-events-none" />
-                      )}
                     </div>
                   </div>
                   {/* Executable path */}

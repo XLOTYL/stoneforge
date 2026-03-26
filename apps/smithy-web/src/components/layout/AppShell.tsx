@@ -457,12 +457,13 @@ const ONBOARDING_STEPS: TourStep[] = [
   },
   {
     id: 'agents-settings',
-    targetTestId: 'create-agent-dialog',
+    targetTestId: 'agent-provider-model-section',
     title: 'Agent Provider & Model',
     description:
       'Each agent can use a different AI provider and model. Select the provider (Claude, OpenAI, etc.) and specific model for this agent. These settings can be changed later from the agent\'s settings.',
     section: 'Agent Fleet',
     route: '/agents',
+    noAutoAdvance: true,
   },
   {
     id: 'workspaces-overview',
@@ -857,16 +858,30 @@ export function AppShell() {
         };
       }
 
-      // ── Agent settings: open Create Agent dialog to show provider/model ──
+      // ── Agent settings: open Create Agent dialog and expand Settings & Tags ──
       if (step.id === 'agents-settings') {
         return {
           ...step,
           onActivate: () => {
             setDirectorCollapsed(true);
-            // Open the Create Agent dialog so provider/model dropdowns are visible
+            // Ensure Create Agent dialog is open
             setTimeout(() => {
-              const createBtn = document.querySelector('[data-testid="agents-create"]') as HTMLButtonElement;
-              if (createBtn) createBtn.click();
+              const dialog = document.querySelector('[data-testid="create-agent-dialog"]');
+              if (!dialog) {
+                const createBtn = document.querySelector('[data-testid="agents-create"]') as HTMLButtonElement;
+                if (createBtn) createBtn.click();
+              }
+              // Expand Settings & Tags section after dialog renders
+              setTimeout(() => {
+                const toggleBtn = document.querySelector('[data-testid="toggle-capabilities"]') as HTMLButtonElement;
+                if (toggleBtn) {
+                  // Check if already expanded by looking for the model select
+                  const modelSelect = document.querySelector('[data-testid="agent-model"]');
+                  if (!modelSelect) {
+                    toggleBtn.click();
+                  }
+                }
+              }, 300);
             }, 300);
           },
           onDeactivate: () => {
