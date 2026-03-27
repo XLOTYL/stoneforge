@@ -2600,7 +2600,7 @@ export class DispatchDaemonImpl implements DispatchDaemon {
   private async assignTaskToWorker(worker: AgentEntity): Promise<boolean> {
     // Get ready tasks (already filtered for blocked, draft plans, future-scheduled, etc.)
     // and sorted by effective priority via api.ready()
-    const readyTasks = await this.api.ready();
+    const readyTasks = await this.api.ready({ includeEphemeral: true });
     const unassignedTasks = readyTasks.filter((t) => !t.assignee);
 
     if (unassignedTasks.length === 0) {
