@@ -263,29 +263,15 @@ function hasDashboardMarker(): boolean {
 }
 
 /**
- * Remove the dashboard marker file on process exit.
- */
-function removeDashboardMarker(): void {
-  const markerPath = getDashboardMarkerPath();
-  if (!markerPath) return;
-  try {
-    unlinkSync(markerPath);
-  } catch {
-    // File may not exist — ignore
-  }
-}
-
-/**
- * Register process exit handlers to clean up the dashboard marker.
- * Handles SIGINT, SIGTERM, and normal exit.
+ * Register process exit handlers for graceful shutdown.
+ * Note: The dashboard marker is intentionally NOT cleaned up on exit —
+ * it must persist across server restarts so that `sf serve` knows a tab
+ * was previously opened and skips opening a new one. Stale markers
+ * (>24h) are cleaned up by hasDashboardMarker() instead.
  */
 function registerMarkerCleanup(): void {
-  const cleanup = () => {
-    removeDashboardMarker();
-  };
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => { cleanup(); process.exit(0); });
-  process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+  process.on('SIGINT', () => { process.exit(0); });
+  process.on('SIGTERM', () => { process.exit(0); });
 }
 
 /**
