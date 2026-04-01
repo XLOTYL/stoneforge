@@ -620,13 +620,13 @@
    reference and use in JavaScript hooks.
    ============================================================================= */
 :root {
-  /* Breakpoint values in pixels */
-  --breakpoint-xs: 0;       /* 0 - 479px: small phones */
-  --breakpoint-sm: 480px;   /* 480 - 639px: large phones */
-  --breakpoint-md: 640px;   /* 640 - 767px: small tablets */
-  --breakpoint-lg: 768px;   /* 768 - 1023px: tablets */
-  --breakpoint-xl: 1024px;  /* 1024 - 1279px: small laptops */
-  --breakpoint-2xl: 1280px; /* 1280px+: desktops */
+  /* Breakpoint values in pixels (aligned with Tailwind CSS v4 defaults) */
+  --breakpoint-xs: 0;        /* 0 - 639px: small phones */
+  --breakpoint-sm: 640px;    /* 640 - 767px: large phones / small tablets */
+  --breakpoint-md: 768px;    /* 768 - 1023px: tablets */
+  --breakpoint-lg: 1024px;   /* 1024 - 1279px: small laptops */
+  --breakpoint-xl: 1280px;   /* 1280 - 1535px: desktops */
+  --breakpoint-2xl: 1536px;  /* 1536px+: large desktops */
 }
 
 /* =============================================================================
@@ -739,8 +739,8 @@
   }
 }
 
-/* Layout adjustments for desktops (container-query based) */
-@container (min-width: 1024px) {
+/* Layout adjustments for desktops (container-query based, matches @xl: / 1280px) */
+@container (min-width: 1280px) {
   :where(*) {
     --sidebar-width: var(--sidebar-width-expanded); /* Expanded on desktop */
     --detail-panel-width: 25rem;             /* 400px */

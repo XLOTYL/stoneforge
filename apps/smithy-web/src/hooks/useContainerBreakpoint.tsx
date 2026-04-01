@@ -9,13 +9,13 @@
  * The container width is provided via React context from AppShell, which
  * attaches a ResizeObserver to the <main> element.
  *
- * Breakpoints (same as tokens.css and useBreakpoint.ts):
- * - xs: 0 - 479px
- * - sm: 480 - 639px
- * - md: 640 - 767px
- * - lg: 768 - 1023px
- * - xl: 1024 - 1279px
- * - 2xl: 1280px+
+ * Breakpoints (aligned with Tailwind CSS v4 defaults, same as tokens.css and useBreakpoint.ts):
+ * - xs: 0 - 639px
+ * - sm: 640 - 767px
+ * - md: 768 - 1023px
+ * - lg: 1024 - 1279px
+ * - xl: 1280 - 1535px
+ * - 2xl: 1536px+
  */
 
 import { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
@@ -136,7 +136,7 @@ export function useContainerBreakpoint(): Breakpoint {
 }
 
 /**
- * Returns true when the container width is below 640px (the @md breakpoint),
+ * Returns true when the container width is below 768px (the @md breakpoint),
  * mirroring viewport-based `useIsMobile` semantics.
  */
 export function useContainerIsMobile(): boolean {
@@ -145,7 +145,7 @@ export function useContainerIsMobile(): boolean {
 }
 
 /**
- * Returns true when the container width is between 640px and 1023px
+ * Returns true when the container width is between 768px and 1279px
  * (the @md–@xl range), mirroring `useIsTablet`.
  */
 export function useContainerIsTablet(): boolean {
@@ -154,7 +154,7 @@ export function useContainerIsTablet(): boolean {
 }
 
 /**
- * Returns true when the container width is 1024px or wider,
+ * Returns true when the container width is 1280px or wider,
  * mirroring `useIsDesktop`.
  */
 export function useContainerIsDesktop(): boolean {

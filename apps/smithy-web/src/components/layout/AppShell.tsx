@@ -19,7 +19,8 @@ import { useNotifications } from '../../api/hooks/useNotifications';
 import { usePendingApprovalCount, useApprovalRequestWatcher } from '../../api/hooks/useApprovalRequests';
 import { useGlobalKeyboardShortcuts, useOnboardingTour } from '../../hooks';
 import { useContainerWidthObserver, ContainerWidthProvider } from '../../hooks/useContainerBreakpoint';
-import { useIsMobile, useIsTablet } from '@stoneforge/ui';
+import { useIsMobile } from '@stoneforge/ui';
+import { BREAKPOINTS, useWindowSize } from '../../hooks/useBreakpoint';
 import { toast } from 'sonner';
 import {
   OnboardingTour,
@@ -247,8 +248,11 @@ const DIRECTOR_COLLAPSED_KEY = 'orchestrator-director-collapsed';
 const DIRECTOR_MAXIMIZED_KEY = 'orchestrator-director-maximized';
 
 function useSidebarState() {
-  const isMobile = useIsMobile();
-  const isTablet = useIsTablet();
+  const isMobile = useIsMobile(); // viewport < 768 (BREAKPOINTS.md)
+  const { width: viewportWidth } = useWindowSize();
+  // Sidebar uses BREAKPOINTS.xl (1280) as the tablet/desktop boundary,
+  // aligned with Tailwind 4's @xl: container query breakpoint.
+  const isTablet = viewportWidth >= BREAKPOINTS.md && viewportWidth < BREAKPOINTS.xl;
 
   const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
