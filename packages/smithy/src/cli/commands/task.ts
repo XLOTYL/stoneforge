@@ -826,6 +826,22 @@ async function taskSyncHandler(
       ? worktreePath
       : path.join(workspaceRoot, worktreePath);
 
+    const remoteAvailable = await worktreeManager.ensureWorktreeRemote(fullWorktreePath);
+    if (!remoteAvailable) {
+      const syncResult: SyncResult = {
+        success: false,
+        error: 'No origin remote is configured for this workspace or worktree',
+        message: 'Git origin remote is not configured',
+        worktreePath,
+        branch,
+      };
+      const mode = getOutputMode(options);
+      if (mode === 'json') {
+        return success(syncResult);
+      }
+      return failure(syncResult.message, ExitCode.GENERAL_ERROR);
+    }
+
     // Fetch from origin
     try {
       await execFileAsync('git', ['fetch', 'origin'], {

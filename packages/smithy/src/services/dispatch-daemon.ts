@@ -4159,6 +4159,17 @@ export class DispatchDaemonImpl implements DispatchDaemon {
       ? worktreePath
       : path.join(workspaceRoot, worktreePath);
 
+    const remoteAvailable = await this.worktreeManager.ensureWorktreeRemote(fullWorktreePath);
+    if (!remoteAvailable) {
+      return {
+        success: false,
+        error: 'No origin remote is configured for this workspace or worktree',
+        message: 'Git origin remote is not configured',
+        worktreePath,
+        branch,
+      };
+    }
+
     // Fetch from origin
     try {
       await execFileAsync('git', ['fetch', 'origin'], {
