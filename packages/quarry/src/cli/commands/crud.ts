@@ -16,6 +16,10 @@ import type { QuarryAPI, TaskFilter } from '../../api/types.js';
 import type { PlanProgress } from '@stoneforge/core';
 import type { StorageBackend } from '@stoneforge/storage';
 import { createInboxService } from '../../services/inbox.js';
+import {
+  assertDirectorTaskCreationAllowedInXlotylMode,
+  isXlotylDirectorTaskCreationError,
+} from '../../services/xlotyl-director-bypass.js';
 import { resolveDatabasePath, resolveActor, createAPI } from '../db.js';
 import { getValue } from '../../config/index.js';
 import { autoLinkTask } from '../../external-sync/auto-link.js';
@@ -132,6 +136,7 @@ export async function createHandler(
 
   try {
     const actor = resolveActor(options);
+    await assertDirectorTaskCreationAllowedInXlotylMode(api, actor);
 
     // Parse priority
     let priority: Priority | undefined;
@@ -270,6 +275,9 @@ export async function createHandler(
     if (autoLinkMessage) messageParts.push(autoLinkMessage);
     return success(created, messageParts.join('\n'));
   } catch (err) {
+    if (isXlotylDirectorTaskCreationError(err)) {
+      return failure(`${err.code}: ${err.message}`, ExitCode.PERMISSION);
+    }
     const message = err instanceof Error ? err.message : String(err);
     return failure(`Failed to create task: ${message}`, ExitCode.GENERAL_ERROR);
   }

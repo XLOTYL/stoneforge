@@ -49,7 +49,7 @@ function createMockTask(overrides: Partial<Task> = {}): Task {
 function createMockServices() {
   const api = {
     get: vi.fn(),
-    list: vi.fn(),
+    list: vi.fn().mockResolvedValue([]),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -105,6 +105,55 @@ function createMockServices() {
 // ============================================================================
 // Tests
 // ============================================================================
+
+describe('POST /api/tasks — XLOTYL Director bypass', () => {
+  let services: Services;
+  let api: ReturnType<typeof createMockServices>['api'];
+
+  beforeEach(() => {
+    const mocks = createMockServices();
+    services = mocks.services;
+    api = mocks.api;
+  });
+
+  it('rejects Director task creation when an xlotyl_stoneforge plan is present', async () => {
+    api.get.mockResolvedValue({
+      id: 'el-director-001',
+      type: 'entity',
+      name: 'Director',
+      metadata: { agent: { agentRole: 'director' } },
+    });
+    api.list.mockResolvedValue([
+      {
+        id: 'el-plan-001',
+        type: 'plan',
+        title: 'XLOTYL plan',
+        status: 'active',
+        metadata: {
+          xlotyl: {
+            schema_version: 1,
+            run_id: 'run-xlotyl',
+            execution_mode: 'xlotyl_stoneforge',
+          },
+        },
+      },
+    ]);
+
+    const app = createTaskRoutes(services);
+
+    const res = await app.request('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Director-created task', createdBy: 'el-director-001' }),
+      headers: { 'content-type': 'application/json' },
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.error.code).toBe('XLOTYL_STONEFORGE_DIRECTOR_TASK_CREATE_FORBIDDEN');
+    expect(body.error.message).toContain('xlotyl_stoneforge mode forbids Stoneforge Director task creation');
+    expect(api.create).not.toHaveBeenCalled();
+  });
+});
 
 describe('POST /api/tasks/:id/reset — session termination', () => {
   let services: Services;

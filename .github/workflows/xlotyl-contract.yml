@@ -1,0 +1,87 @@
+name: M1 XLOTYL decision contract
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master, feature/xlotyl-daemon-decision-provider]
+  workflow_dispatch:
+    inputs:
+      xlotyl_ref:
+        description: Git ref for XLOTYL/xlotyl (branch or full SHA).
+        required: false
+        type: string
+        default: feature/stoneforge-decision-module
+
+concurrency:
+  group: xlotyl-contract-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  paired-m1-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install Stoneforge
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Stoneforge Smithy
+        run: pnpm --filter @stoneforge/smithy build
+
+      - name: Resolve STONEFORGE_SF_BIN
+        run: |
+          set -euo pipefail
+          SF_BIN="${GITHUB_WORKSPACE}/packages/smithy/dist/bin/sf.js"
+          if [[ ! -f "$SF_BIN" ]]; then
+            echo "::error::Expected Stoneforge CLI at ${SF_BIN} after build." >&2
+            exit 1
+          fi
+          echo "STONEFORGE_SF_BIN=${SF_BIN}" >> "${GITHUB_ENV}"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: XLOTYL/xlotyl
+          path: xlotyl
+          ref: ${{ inputs.xlotyl_ref || 'feature/stoneforge-decision-module' }}
+          token: ${{ secrets.XLOTYL_CI_PAT || github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: xlotyl/package-lock.json
+
+      - name: Install XLOTYL
+        working-directory: xlotyl
+        run: npm ci
+
+      - name: Build XLOTYL core-dev-services
+        working-directory: xlotyl
+        run: npm run build -w @xlotyl/core-dev-services
+
+      - name: XLOTYL sf-cli contract tests
+        working-directory: xlotyl
+        run: npm run test:sf-cli -w @xlotyl/core-dev-services
+
+      - name: XLOTYL real sf-cli decision e2e
+        working-directory: xlotyl
+        run: npm run test:stoneforge-decision-sf-cli -w @xlotyl/core-dev-services
+
+      - name: Stoneforge XLOTYL daemon-decision e2e
+        env:
+          XLOTYL_DECISION_MODULE: ${{ github.workspace }}/xlotyl/services/core-dev-services/dist/stoneforge/daemon-decision.js
+        run: pnpm --filter @stoneforge/smithy test:xlotyl-daemon-decision

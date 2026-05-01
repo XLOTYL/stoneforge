@@ -12,6 +12,10 @@ import { createLogger, updateOrchestratorTaskMeta, getOrchestratorTaskMeta } fro
 import type { Services } from '../services.js';
 import { formatTaskResponse } from '../formatters.js';
 import type { QuarryAPI } from '@stoneforge/quarry';
+import {
+  assertDirectorTaskCreationAllowedInXlotylMode,
+  isXlotylDirectorTaskCreationError,
+} from '@stoneforge/quarry';
 
 const logger = createLogger('orchestrator');
 
@@ -159,6 +163,19 @@ export function createTaskRoutes(services: Services) {
       }
 
       const createdBy = (body.createdBy ?? 'el-0000') as EntityId;
+      try {
+        await assertDirectorTaskCreationAllowedInXlotylMode(api, createdBy);
+      } catch (guardError) {
+        if (isXlotylDirectorTaskCreationError(guardError)) {
+          return c.json({
+            error: {
+              code: guardError.code,
+              message: guardError.message,
+            },
+          }, 409);
+        }
+        throw guardError;
+      }
 
       // Map status string to TaskStatus enum
       let status: TaskStatus | undefined;
