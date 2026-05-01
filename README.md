@@ -369,6 +369,38 @@ pnpm dev
 pnpm dev:platform
 ```
 
+### Local XLOTYL contract tooling
+
+For the paired XLOTYL/Stoneforge decision-provider tests, keep generated tools and env files in the parent `XLOTYL/` workspace so both repos share the same paths:
+
+```text
+XLOTYL/
+  .local/      # generated tools, caches, and env files
+  xlotyl/
+  stoneforge/
+```
+
+From `XLOTYL/stoneforge`, bootstrap local npm/pnpm/Bun tools, install dependencies, build Stoneforge `sf.js`, and build XLOTYL's decision module:
+
+```bash
+scripts/bootstrap_xlotyl_contract_env.sh
+source ../.local/env/xlotyl-stoneforge-contract.env
+```
+
+The generated env file exports:
+
+- `STONEFORGE_SF_BIN=.../stoneforge/packages/smithy/dist/bin/sf.js`
+- `XLOTYL_DECISION_MODULE=.../xlotyl/services/core-dev-services/dist/stoneforge/daemon-decision.js`
+- `PATH` entries for `XLOTYL/.local/npm-global/bin` and `XLOTYL/.local/bun/bin`
+
+Run the local daemon-decision e2e:
+
+```bash
+pnpm --filter @stoneforge/smithy test:xlotyl-daemon-decision
+```
+
+No long-running Stoneforge server is required for this contract test; the e2e creates a temporary workspace and database.
+
 ### Commands
 
 ```bash
