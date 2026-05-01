@@ -17,6 +17,8 @@ const STATE_FILE = join(PROJECT_ROOT, '.stoneforge', 'daemon-state.json');
 
 interface DaemonConfigOverrides {
   directorInboxForwardingEnabled?: boolean;
+  decisionProvider?: 'legacy' | 'xlotyl';
+  xlotylDecisionModule?: string;
 }
 
 interface DaemonState {

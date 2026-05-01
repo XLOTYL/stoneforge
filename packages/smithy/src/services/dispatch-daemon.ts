@@ -19,6 +19,7 @@
  */
 
 import { EventEmitter } from 'node:events';
+import { pathToFileURL } from 'node:url';
 import type {
   EntityId,
   ElementId,
@@ -82,6 +83,8 @@ export const DISPATCH_DAEMON_MIN_POLL_INTERVAL_MS = 1000;
  * Maximum poll interval in milliseconds for dispatch daemon (1 minute)
  */
 export const DISPATCH_DAEMON_MAX_POLL_INTERVAL_MS = 60000;
+
+export const DEFAULT_XLOTYL_DECISION_MODULE = '@xlotyl/core-dev-services/stoneforge/daemon-decision';
 
 /**
  * Minimum floor for rate limit reset times (15 minutes).
@@ -150,6 +153,90 @@ export type OnSessionStartedCallback = (
   agentId: EntityId,
   initialPrompt: string
 ) => void;
+
+export type DispatchDecisionProviderMode = 'legacy' | 'xlotyl';
+
+export interface DispatchDecisionPolicy {
+  max_parallel_workers?: number;
+  allowed_worker_providers?: string[];
+  default_worker_provider?: string;
+}
+
+export interface DispatchDecisionReadyTask {
+  stoneforge_task_id: string;
+  title: string;
+  priority: number;
+  ready_order: number;
+  assignee?: string | null;
+  assignee_id?: string | null;
+  status?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DispatchDecisionAgent {
+  agent_id: string;
+  name?: string;
+  role?: string;
+  provider?: string;
+  active_session_id?: string | null;
+  session_status?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DispatchDecisionRequest {
+  workspace_root: string;
+  poll_id: string;
+  dispatch_policy?: DispatchDecisionPolicy;
+  ready_tasks: DispatchDecisionReadyTask[];
+  agents: DispatchDecisionAgent[];
+  busy_worker_count: number;
+  max_parallel_workers?: number;
+}
+
+export type DispatchDecisionAction =
+  | {
+      action_type: 'dispatch_task';
+      decision_id: string;
+      stoneforge_task_id: string;
+      packet_id: string;
+      xlotyl_run_id?: string;
+      agent_id: string;
+      provider?: string;
+      reason: string;
+    }
+  | {
+      action_type: 'noop';
+      decision_id: string;
+      packet_id?: string;
+      stoneforge_task_id?: string;
+      xlotyl_run_id?: string;
+      agent_id?: string;
+      reason: string;
+    };
+
+export interface DispatchDecisionResult {
+  ok: boolean;
+  decisions: DispatchDecisionAction[];
+  decision_log?: string;
+  error?: string;
+}
+
+export interface DispatchDecisionOutcome {
+  workspace_root: string;
+  poll_id: string;
+  decision: DispatchDecisionAction;
+  executed: boolean;
+  error?: string;
+}
+
+export interface DispatchDecisionProvider {
+  decideDispatch(request: DispatchDecisionRequest): Promise<DispatchDecisionResult>;
+  recordDispatchOutcome?(outcome: DispatchDecisionOutcome): Promise<void>;
+}
+
+export type DispatchDaemonConfigSnapshot =
+  Omit<Required<DispatchDaemonConfig>, 'onSessionStarted' | 'xlotylDecisionProvider' | 'xlotylDecisionModule'> &
+  Pick<DispatchDaemonConfig, 'onSessionStarted' | 'xlotylDecisionProvider' | 'xlotylDecisionModule'>;
 
 /**
  * Configuration for the Dispatch Daemon
@@ -268,6 +355,25 @@ export interface DispatchDaemonConfig {
   readonly onSessionStarted?: OnSessionStartedCallback;
 
   /**
+   * Dispatch policy provider. `legacy` preserves built-in Stoneforge selection.
+   * `xlotyl` delegates task/worker routing to an in-process XLOTYL provider.
+   * Default: legacy
+   */
+  readonly decisionProvider?: DispatchDecisionProviderMode;
+
+  /**
+   * ESM module specifier or absolute built-file path for the XLOTYL provider.
+   * The module must export createStoneforgeDaemonDecisionProvider().
+   * Default: @xlotyl/core-dev-services/stoneforge/daemon-decision
+   */
+  readonly xlotylDecisionModule?: string;
+
+  /**
+   * Pre-built provider, primarily for tests and embedding.
+   */
+  readonly xlotylDecisionProvider?: DispatchDecisionProvider;
+
+  /**
    * Project root directory for loading prompt overrides.
    * Default: process.cwd()
    */
@@ -334,6 +440,9 @@ interface NormalizedConfig {
   maxSessionDurationMs: number;
   maxStewardSessionDurationMs: number;
   onSessionStarted?: OnSessionStartedCallback;
+  decisionProvider: DispatchDecisionProviderMode;
+  xlotylDecisionModule?: string;
+  xlotylDecisionProvider?: DispatchDecisionProvider;
   projectRoot: string;
   directorInboxForwardingEnabled: boolean;
   directorInboxIdleThresholdMs: number;
@@ -478,7 +587,7 @@ export interface DispatchDaemon {
   /**
    * Gets the current configuration.
    */
-  getConfig(): Omit<Required<DispatchDaemonConfig>, 'onSessionStarted'> & { onSessionStarted?: OnSessionStartedCallback };
+  getConfig(): DispatchDaemonConfigSnapshot;
 
   /**
    * Updates the configuration.
@@ -530,6 +639,8 @@ export class DispatchDaemonImpl implements DispatchDaemon {
   private readonly emitter: EventEmitter;
 
   private config: NormalizedConfig;
+  private loadedXlotylDecisionProvider?: DispatchDecisionProvider;
+  private loadedXlotylDecisionModule?: string;
   private running = false;
   private polling = false;
   private pollIntervalHandle?: NodeJS.Timeout;
@@ -875,9 +986,13 @@ export class DispatchDaemonImpl implements DispatchDaemon {
       // Any remaining unread items are non-dispatch messages needing triage —
       // defer task assignment so the next cycle's triage pass can handle them.
       const availableWorkers: AgentEntity[] = [];
+      let busyWorkerCount = 0;
       for (const worker of workers) {
         const session = this.sessionManager.getActiveSession(asEntityId(worker.id));
-        if (session) continue;
+        if (session) {
+          busyWorkerCount++;
+          continue;
+        }
 
         const unreadItems = this.inboxService.getInbox(asEntityId(worker.id), {
           status: InboxStatus.UNREAD,
@@ -891,6 +1006,7 @@ export class DispatchDaemonImpl implements DispatchDaemon {
           taskStatus: [TaskStatus.OPEN, TaskStatus.IN_PROGRESS, TaskStatus.REVIEW],
         });
         if (workerTasks.length > 0) {
+          busyWorkerCount++;
           logger.debug(`Worker ${worker.name} already has ${workerTasks.length} assigned task(s), skipping`);
           continue;
         }
@@ -898,19 +1014,34 @@ export class DispatchDaemonImpl implements DispatchDaemon {
         availableWorkers.push(worker);
       }
 
-      // 3. For each available worker, try to assign a task
-      for (const worker of availableWorkers) {
-        try {
-          const assigned = await this.assignTaskToWorker(worker);
-          if (assigned) {
-            processed++;
+      // 3. Delegate selection to XLOTYL when enabled. XLOTYL strictly replaces
+      // legacy routing: provider errors, noops, or invalid decisions do not
+      // fall back to the built-in highest-priority selection.
+      if (this.config.decisionProvider === 'xlotyl') {
+        const delegated = await this.dispatchWithXlotylDecisionProvider(
+          `worker-availability:${startTime}`,
+          workers,
+          availableWorkers,
+          busyWorkerCount
+        );
+        processed += delegated.processed;
+        errors += delegated.errors;
+        errorMessages.push(...delegated.errorMessages);
+      } else {
+        // 4. For each available worker, try to assign a task using legacy policy
+        for (const worker of availableWorkers) {
+          try {
+            const assigned = await this.assignTaskToWorker(worker);
+            if (assigned) {
+              processed++;
+            }
+          } catch (error) {
+            errors++;
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            errorMessages.push(`Worker ${worker.name}: ${errorMessage}`);
+            logger.error(`Error assigning task to worker ${worker.name}:`, error);
+            this.operationLog?.write('error', 'dispatch', `Error assigning task to worker ${worker.name}: ${errorMessage}`, { agentId: worker.id });
           }
-        } catch (error) {
-          errors++;
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          errorMessages.push(`Worker ${worker.name}: ${errorMessage}`);
-          logger.error(`Error assigning task to worker ${worker.name}:`, error);
-          this.operationLog?.write('error', 'dispatch', `Error assigning task to worker ${worker.name}: ${errorMessage}`, { agentId: worker.id });
         }
       }
     } catch (error) {
@@ -1911,7 +2042,7 @@ export class DispatchDaemonImpl implements DispatchDaemon {
   // Configuration
   // ----------------------------------------
 
-  getConfig(): Omit<Required<DispatchDaemonConfig>, 'onSessionStarted'> & { onSessionStarted?: OnSessionStartedCallback } {
+  getConfig(): DispatchDaemonConfigSnapshot {
     return { ...this.config };
   }
 
@@ -2018,6 +2149,9 @@ export class DispatchDaemonImpl implements DispatchDaemon {
       maxSessionDurationMs: config?.maxSessionDurationMs ?? 0,
       maxStewardSessionDurationMs: config?.maxStewardSessionDurationMs ?? 30 * 60 * 1000,
       onSessionStarted: config?.onSessionStarted,
+      decisionProvider: config?.decisionProvider ?? 'legacy',
+      xlotylDecisionModule: config?.xlotylDecisionModule,
+      xlotylDecisionProvider: config?.xlotylDecisionProvider,
       projectRoot: config?.projectRoot ?? process.cwd(),
       directorInboxForwardingEnabled: config?.directorInboxForwardingEnabled ?? true,
       directorInboxIdleThresholdMs: config?.directorInboxIdleThresholdMs ?? 120_000,
@@ -2699,6 +2833,239 @@ export class DispatchDaemonImpl implements DispatchDaemon {
   }
 
   /**
+   * Loads the in-process XLOTYL decision provider. The import is lazy so
+   * legacy Stoneforge dispatch has no runtime dependency on XLOTYL.
+   */
+  private async getXlotylDecisionProvider(): Promise<DispatchDecisionProvider> {
+    if (this.config.xlotylDecisionProvider) {
+      return this.config.xlotylDecisionProvider;
+    }
+
+    const moduleSpecifier = this.config.xlotylDecisionModule ?? DEFAULT_XLOTYL_DECISION_MODULE;
+    if (
+      this.loadedXlotylDecisionProvider &&
+      this.loadedXlotylDecisionModule === moduleSpecifier
+    ) {
+      return this.loadedXlotylDecisionProvider;
+    }
+
+    const importSpecifier = moduleSpecifier.startsWith('/')
+      ? pathToFileURL(moduleSpecifier).href
+      : moduleSpecifier;
+    const imported = await import(importSpecifier) as {
+      createStoneforgeDaemonDecisionProvider?: () => DispatchDecisionProvider;
+    };
+    const createProvider = imported.createStoneforgeDaemonDecisionProvider;
+    if (typeof createProvider !== 'function') {
+      throw new Error(
+        `XLOTYL decision module ${moduleSpecifier} does not export createStoneforgeDaemonDecisionProvider()`
+      );
+    }
+    const provider = createProvider();
+    if (!provider || typeof provider.decideDispatch !== 'function') {
+      throw new Error(`XLOTYL decision module ${moduleSpecifier} did not create a valid provider`);
+    }
+
+    this.loadedXlotylDecisionProvider = provider;
+    this.loadedXlotylDecisionModule = moduleSpecifier;
+    return provider;
+  }
+
+  private toDispatchDecisionAgent(worker: AgentEntity): DispatchDecisionAgent {
+    const meta = getAgentMetadata(worker);
+    const activeSession = this.sessionManager.getActiveSession(asEntityId(worker.id));
+    return {
+      agent_id: worker.id as unknown as string,
+      name: worker.name,
+      role: meta?.agentRole,
+      provider: meta?.provider,
+      active_session_id: activeSession?.id ?? null,
+      session_status: meta?.sessionStatus ?? (activeSession ? 'running' : 'idle'),
+      metadata: worker.metadata as Record<string, unknown> | undefined,
+    };
+  }
+
+  private toDispatchDecisionReadyTask(task: Task, readyOrder: number): DispatchDecisionReadyTask {
+    return {
+      stoneforge_task_id: task.id as unknown as string,
+      title: task.title,
+      priority: task.priority,
+      ready_order: readyOrder,
+      assignee: task.assignee as unknown as string | null | undefined,
+      assignee_id: task.assignee as unknown as string | null | undefined,
+      status: task.status,
+      metadata: task.metadata as Record<string, unknown> | undefined,
+    };
+  }
+
+  private async recordXlotylDecisionOutcome(
+    provider: DispatchDecisionProvider,
+    outcome: DispatchDecisionOutcome
+  ): Promise<void> {
+    if (!provider.recordDispatchOutcome) {
+      return;
+    }
+    try {
+      await provider.recordDispatchOutcome(outcome);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn(`Failed to record XLOTYL decision outcome ${outcome.decision.decision_id}: ${errorMessage}`);
+      this.operationLog?.write(
+        'warn',
+        'dispatch',
+        `Failed to record XLOTYL decision outcome ${outcome.decision.decision_id}: ${errorMessage}`,
+        { decisionId: outcome.decision.decision_id }
+      );
+    }
+  }
+
+  private async dispatchWithXlotylDecisionProvider(
+    pollId: string,
+    workers: AgentEntity[],
+    availableWorkers: AgentEntity[],
+    busyWorkerCount: number
+  ): Promise<{ processed: number; errors: number; errorMessages: string[] }> {
+    const provider = await this.getXlotylDecisionProvider();
+    const readyTasks = (await this.api.ready({ includeEphemeral: true })).filter((task) => !task.assignee);
+    const request: DispatchDecisionRequest = {
+      workspace_root: this.config.projectRoot,
+      poll_id: pollId,
+      dispatch_policy: {},
+      ready_tasks: readyTasks.map((task, index) => this.toDispatchDecisionReadyTask(task, index)),
+      agents: workers.map((worker) => this.toDispatchDecisionAgent(worker)),
+      busy_worker_count: busyWorkerCount,
+    };
+
+    let result: DispatchDecisionResult;
+    try {
+      result = await provider.decideDispatch(request);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`XLOTYL decision provider failed: ${errorMessage}`);
+      this.operationLog?.write('error', 'dispatch', `XLOTYL decision provider failed: ${errorMessage}`);
+      return { processed: 0, errors: 1, errorMessages: [errorMessage] };
+    }
+
+    if (!result.ok) {
+      const errorMessage = result.error ?? 'XLOTYL decision provider returned ok=false';
+      logger.error(errorMessage);
+      this.operationLog?.write('error', 'dispatch', errorMessage);
+      return { processed: 0, errors: 1, errorMessages: [errorMessage] };
+    }
+
+    const decisions = Array.isArray(result.decisions) ? result.decisions : [];
+    if (decisions.length === 0) {
+      const errorMessage = 'XLOTYL decision provider returned no decisions';
+      logger.error(errorMessage);
+      this.operationLog?.write('error', 'dispatch', errorMessage);
+      return { processed: 0, errors: 1, errorMessages: [errorMessage] };
+    }
+
+    const readyById = new Map(readyTasks.map((task) => [task.id as unknown as string, task]));
+    const availableById = new Map(availableWorkers.map((worker) => [worker.id as unknown as string, worker]));
+    const seenTasks = new Set<string>();
+    const seenWorkers = new Set<string>();
+    const dispatches: Array<{ decision: Extract<DispatchDecisionAction, { action_type: 'dispatch_task' }>; task: Task; worker: AgentEntity }> = [];
+    const invalidReasons: string[] = [];
+
+    for (const decision of decisions) {
+      if (decision.action_type === 'noop') {
+        await this.recordXlotylDecisionOutcome(provider, {
+          workspace_root: this.config.projectRoot,
+          poll_id: pollId,
+          decision,
+          executed: false,
+        });
+        continue;
+      }
+
+      if (decision.action_type !== 'dispatch_task') {
+        invalidReasons.push(`Unsupported XLOTYL decision action: ${(decision as { action_type?: string }).action_type ?? 'unknown'}`);
+        continue;
+      }
+
+      const task = readyById.get(decision.stoneforge_task_id);
+      const worker = availableById.get(decision.agent_id);
+      if (!task) {
+        invalidReasons.push(`XLOTYL decision ${decision.decision_id} referenced unavailable task ${decision.stoneforge_task_id}`);
+      }
+      if (!worker) {
+        invalidReasons.push(`XLOTYL decision ${decision.decision_id} referenced unavailable worker ${decision.agent_id}`);
+      }
+      if (seenTasks.has(decision.stoneforge_task_id)) {
+        invalidReasons.push(`XLOTYL decision ${decision.decision_id} duplicated task ${decision.stoneforge_task_id}`);
+      }
+      if (seenWorkers.has(decision.agent_id)) {
+        invalidReasons.push(`XLOTYL decision ${decision.decision_id} duplicated worker ${decision.agent_id}`);
+      }
+      if (task && worker) {
+        dispatches.push({ decision, task, worker });
+        seenTasks.add(decision.stoneforge_task_id);
+        seenWorkers.add(decision.agent_id);
+      }
+    }
+
+    if (invalidReasons.length > 0) {
+      const errorMessage = invalidReasons.join('; ');
+      logger.error(errorMessage);
+      this.operationLog?.write('error', 'dispatch', errorMessage);
+      for (const decision of decisions) {
+        await this.recordXlotylDecisionOutcome(provider, {
+          workspace_root: this.config.projectRoot,
+          poll_id: pollId,
+          decision,
+          executed: false,
+          error: errorMessage,
+        });
+      }
+      return { processed: 0, errors: 1, errorMessages: [errorMessage] };
+    }
+
+    let processed = 0;
+    const errorMessages: string[] = [];
+    for (const { decision, task, worker } of dispatches) {
+      try {
+        const assigned = await this.assignSpecificTaskToWorker(worker, task, {
+          decisionProvider: 'xlotyl',
+          decisionId: decision.decision_id,
+          decisionReason: decision.reason,
+          xlotylRunId: decision.xlotyl_run_id,
+          xlotylPacketId: decision.packet_id,
+        });
+        if (assigned) {
+          processed++;
+        }
+        await this.recordXlotylDecisionOutcome(provider, {
+          workspace_root: this.config.projectRoot,
+          poll_id: pollId,
+          decision,
+          executed: assigned,
+          ...(assigned ? {} : { error: 'Stoneforge safety gates rejected the selected task/worker pair' }),
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errorMessages.push(errorMessage);
+        logger.error(`Error executing XLOTYL decision ${decision.decision_id}:`, error);
+        this.operationLog?.write(
+          'error',
+          'dispatch',
+          `Error executing XLOTYL decision ${decision.decision_id}: ${errorMessage}`,
+          { decisionId: decision.decision_id, agentId: decision.agent_id, taskId: decision.stoneforge_task_id }
+        );
+        await this.recordXlotylDecisionOutcome(provider, {
+          workspace_root: this.config.projectRoot,
+          poll_id: pollId,
+          decision,
+          executed: false,
+          error: errorMessage,
+        });
+      }
+    }
+
+    return { processed, errors: errorMessages.length, errorMessages };
+  }
+
+  /**
    * Assigns the highest priority unassigned task to a worker.
    * Handles handoff branches by reusing existing worktrees.
    * Respects agent pool capacity limits.
@@ -2715,7 +3082,39 @@ export class DispatchDaemonImpl implements DispatchDaemon {
 
     // ready() already sorts by effective priority, take the first
     const task = unassignedTasks[0];
+    return this.assignSpecificTaskToWorker(worker, task);
+  }
+
+  private async assignSpecificTaskToWorker(
+    worker: AgentEntity,
+    task: Task,
+    decisionContext?: {
+      decisionProvider: 'xlotyl';
+      decisionId: string;
+      decisionReason: string;
+      xlotylRunId?: string;
+      xlotylPacketId?: string;
+    }
+  ): Promise<boolean> {
     const workerId = asEntityId(worker.id);
+
+    // Strict recheck: decision providers pick exact task/worker pairs, but
+    // Stoneforge still owns execution safety. If the pair became stale, do
+    // not substitute another task or worker.
+    if (this.sessionManager.getActiveSession(workerId)) {
+      return false;
+    }
+    const assignedWorkerTasks = await this.taskAssignment.getAgentTasks(workerId, {
+      taskStatus: [TaskStatus.OPEN, TaskStatus.IN_PROGRESS, TaskStatus.REVIEW],
+    });
+    if (assignedWorkerTasks.length > 0) {
+      return false;
+    }
+    const freshTask = await this.api.get<Task>(task.id);
+    if (!freshTask || freshTask.assignee) {
+      return false;
+    }
+    task = freshTask;
 
     // Check pool capacity before spawning
     if (this.poolService) {
@@ -2821,6 +3220,17 @@ export class DispatchDaemonImpl implements DispatchDaemon {
       markAsStarted: true,
       priority: task.priority,
       sessionId: session.providerSessionId ?? session.id,
+      ...(decisionContext
+        ? {
+            notificationMetadata: {
+              decision_provider: decisionContext.decisionProvider,
+              decision_id: decisionContext.decisionId,
+              decision_reason: decisionContext.decisionReason,
+              xlotyl_run_id: decisionContext.xlotylRunId,
+              xlotyl_packet_id: decisionContext.xlotylPacketId,
+            },
+          }
+        : {}),
     };
 
     try {
@@ -2848,6 +3258,22 @@ export class DispatchDaemonImpl implements DispatchDaemon {
       throw error;
     }
     this.emitter.emit('task:dispatched', task.id, workerId);
+    if (decisionContext) {
+      this.operationLog?.write(
+        'info',
+        'dispatch',
+        `XLOTYL decision ${decisionContext.decisionId} dispatched task ${task.id} to worker ${workerId}`,
+        {
+          decision_provider: decisionContext.decisionProvider,
+          decision_id: decisionContext.decisionId,
+          decision_reason: decisionContext.decisionReason,
+          xlotyl_run_id: decisionContext.xlotylRunId,
+          xlotyl_packet_id: decisionContext.xlotylPacketId,
+          taskId: task.id,
+          agentId: workerId,
+        }
+      );
+    }
 
     // Record session history entry for this worker session
     // Re-read task to get metadata after dispatch wrote to it

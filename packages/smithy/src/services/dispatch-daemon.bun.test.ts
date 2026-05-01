@@ -232,6 +232,16 @@ describe('DispatchDaemon Integration', () => {
     return api.create(task as unknown as Record<string, unknown> & { createdBy: EntityId }) as Promise<Task>;
   }
 
+  async function createPriorityTask(title: string, priority: Priority): Promise<Task> {
+    const task = await createTask({
+      title,
+      createdBy: systemEntity,
+      status: TaskStatus.OPEN,
+      priority,
+    });
+    return api.create(task as unknown as Record<string, unknown> & { createdBy: EntityId }) as Promise<Task>;
+  }
+
   // Helper to register a test worker
   async function createTestWorker(name: string): Promise<AgentEntity> {
     return agentRegistry.registerWorker({
@@ -357,6 +367,134 @@ describe('DispatchDaemon Integration', () => {
 
       expect(highAssignee).toBe(worker.id as unknown as string);
       expect(lowAssignee).toBeUndefined();
+    });
+  });
+
+  describe('XLOTYL decision provider dispatch replacement', () => {
+    test('dispatches the provider-selected task instead of legacy priority order', async () => {
+      const worker = await createTestWorker('xlotyl-worker');
+      const lowPriorityTask = await createPriorityTask('Provider selected low priority', Priority.LOW);
+      const highPriorityTask = await createPriorityTask('Legacy would select high priority', Priority.CRITICAL);
+      const provider = {
+        decideDispatch: mock(async () => ({
+          ok: true,
+          decisions: [
+            {
+              action_type: 'dispatch_task',
+              decision_id: 'poll-1:dispatch_task:low:0',
+              stoneforge_task_id: lowPriorityTask.id,
+              packet_id: 'low',
+              xlotyl_run_id: 'run-1',
+              agent_id: worker.id,
+              reason: 'test provider selected the lower priority task',
+            },
+          ],
+        })),
+        recordDispatchOutcome: mock(async () => {}),
+      };
+      daemon.updateConfig({
+        decisionProvider: 'xlotyl',
+        xlotylDecisionProvider: provider,
+      } as unknown as Partial<DispatchDaemonConfig>);
+
+      const result = await daemon.pollWorkerAvailability();
+
+      expect(result.processed).toBe(1);
+      expect(provider.decideDispatch).toHaveBeenCalledTimes(1);
+      expect(provider.recordDispatchOutcome).toHaveBeenCalledTimes(1);
+      const updatedLow = await api.get<Task>(lowPriorityTask.id);
+      const updatedHigh = await api.get<Task>(highPriorityTask.id);
+      expect(updatedLow?.assignee as unknown as string).toBe(worker.id as unknown as string);
+      expect(updatedHigh?.assignee).toBeUndefined();
+    });
+
+    test('respects provider noop without falling back to legacy dispatch', async () => {
+      await createTestWorker('noop-worker');
+      const task = await createTestTask('Task blocked by provider noop');
+      const provider = {
+        decideDispatch: mock(async () => ({
+          ok: true,
+          decisions: [
+            {
+              action_type: 'noop',
+              decision_id: 'poll-2:noop:run:0',
+              reason: 'provider intentionally paused dispatch',
+            },
+          ],
+        })),
+        recordDispatchOutcome: mock(async () => {}),
+      };
+      daemon.updateConfig({
+        decisionProvider: 'xlotyl',
+        xlotylDecisionProvider: provider,
+      } as unknown as Partial<DispatchDaemonConfig>);
+
+      const result = await daemon.pollWorkerAvailability();
+
+      expect(result.processed).toBe(0);
+      expect(result.errors).toBe(0);
+      expect(sessionManager.startSession).not.toHaveBeenCalled();
+      expect(provider.recordDispatchOutcome).toHaveBeenCalledTimes(1);
+      const updatedTask = await api.get<Task>(task.id);
+      expect(updatedTask?.assignee).toBeUndefined();
+    });
+
+    test('does not dispatch when the provider throws', async () => {
+      await createTestWorker('error-worker');
+      const task = await createTestTask('Task remains unassigned on provider error');
+      const provider = {
+        decideDispatch: mock(async () => {
+          throw new Error('xlotyl provider unavailable');
+        }),
+        recordDispatchOutcome: mock(async () => {}),
+      };
+      daemon.updateConfig({
+        decisionProvider: 'xlotyl',
+        xlotylDecisionProvider: provider,
+      } as unknown as Partial<DispatchDaemonConfig>);
+
+      const result = await daemon.pollWorkerAvailability();
+
+      expect(result.processed).toBe(0);
+      expect(result.errors).toBe(1);
+      expect(sessionManager.startSession).not.toHaveBeenCalled();
+      expect(provider.recordDispatchOutcome).not.toHaveBeenCalled();
+      const updatedTask = await api.get<Task>(task.id);
+      expect(updatedTask?.assignee).toBeUndefined();
+    });
+
+    test('does not substitute another worker or task for an invalid provider decision', async () => {
+      const worker = await createTestWorker('valid-worker');
+      const task = await createTestTask('Valid ready task');
+      const provider = {
+        decideDispatch: mock(async () => ({
+          ok: true,
+          decisions: [
+            {
+              action_type: 'dispatch_task',
+              decision_id: 'poll-3:dispatch_task:missing:0',
+              stoneforge_task_id: 'el-missing-task',
+              packet_id: 'missing',
+              agent_id: worker.id,
+              reason: 'provider returned stale task id',
+            },
+          ],
+        })),
+        recordDispatchOutcome: mock(async () => {}),
+      };
+      daemon.updateConfig({
+        decisionProvider: 'xlotyl',
+        xlotylDecisionProvider: provider,
+      } as unknown as Partial<DispatchDaemonConfig>);
+
+      const result = await daemon.pollWorkerAvailability();
+
+      expect(result.processed).toBe(0);
+      expect(result.errors).toBe(1);
+      expect(sessionManager.startSession).not.toHaveBeenCalled();
+      expect(provider.recordDispatchOutcome).toHaveBeenCalledTimes(1);
+      const updatedTask = await api.get<Task>(task.id);
+      expect(updatedTask?.assignee).toBeUndefined();
     });
   });
 

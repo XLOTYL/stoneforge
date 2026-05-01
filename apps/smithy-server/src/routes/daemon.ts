@@ -212,15 +212,33 @@ export function createDaemonRoutes(services: Services) {
         stewardTriggerPollEnabled?: boolean;
         workflowTaskPollEnabled?: boolean;
         directorInboxForwardingEnabled?: boolean;
+        decisionProvider?: 'legacy' | 'xlotyl';
+        xlotylDecisionModule?: string;
       };
 
       dispatchDaemon.updateConfig(body);
 
       // Persist config overrides that should survive server restarts
-      if (body.directorInboxForwardingEnabled !== undefined) {
-        saveDaemonConfigOverrides({
-          directorInboxForwardingEnabled: body.directorInboxForwardingEnabled,
-        });
+      if (
+        body.directorInboxForwardingEnabled !== undefined ||
+        body.decisionProvider !== undefined ||
+        body.xlotylDecisionModule !== undefined
+      ) {
+        const overrides: {
+          directorInboxForwardingEnabled?: boolean;
+          decisionProvider?: 'legacy' | 'xlotyl';
+          xlotylDecisionModule?: string;
+        } = {};
+        if (body.directorInboxForwardingEnabled !== undefined) {
+          overrides.directorInboxForwardingEnabled = body.directorInboxForwardingEnabled;
+        }
+        if (body.decisionProvider !== undefined) {
+          overrides.decisionProvider = body.decisionProvider;
+        }
+        if (body.xlotylDecisionModule !== undefined) {
+          overrides.xlotylDecisionModule = body.xlotylDecisionModule;
+        }
+        saveDaemonConfigOverrides(overrides);
       }
 
       return c.json({
