@@ -209,7 +209,7 @@ fi
   printf 'export BUN_INSTALL=%q\n' "$BUN_INSTALL_DIR"
   printf 'export STONEFORGE_SF_BIN=%q\n' "$REPO_ROOT/packages/smithy/dist/bin/sf.js"
   printf 'export XLOTYL_DECISION_MODULE=%q\n' "$XLOTYL_ROOT/services/core-dev-services/dist/stoneforge/daemon-decision.js"
-  printf 'export PATH=%q:%q:%q:"$PATH"\n' "$NODE_BIN_DIR" "$NODE_TOOL_BIN" "$BUN_INSTALL_DIR/bin"
+  printf 'export PATH=%q:%q:%q:"$PATH"\n' "$NODE_TOOL_BIN" "$NODE_BIN_DIR" "$BUN_INSTALL_DIR/bin"
 } > "$ENV_FILE"
 
 log "Wrote $ENV_FILE"
