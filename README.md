@@ -391,7 +391,7 @@ The generated env file exports:
 
 - `STONEFORGE_SF_BIN=.../stoneforge/packages/smithy/dist/bin/sf.js`
 - `XLOTYL_DECISION_MODULE=.../xlotyl/services/core-dev-services/dist/stoneforge/daemon-decision.js`
-- `PATH` entries for `XLOTYL/.local/npm-global/bin` and `XLOTYL/.local/bun/bin`
+- `PATH` entries for `XLOTYL/.local/npm-global/node_modules/.bin` and `XLOTYL/.local/bun/bin`
 
 Run the local daemon-decision e2e:
 

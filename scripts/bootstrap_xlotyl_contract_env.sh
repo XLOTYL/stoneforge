@@ -78,8 +78,9 @@ NPM_CACHE="$LOCAL_ROOT/npm-cache"
 PNPM_STORE="$LOCAL_ROOT/pnpm-store"
 BUN_INSTALL_DIR="$LOCAL_ROOT/bun"
 BUN_BIN="$BUN_INSTALL_DIR/bin/bun"
-NPM_BIN="$NPM_PREFIX/bin/npm"
-PNPM_BIN="$NPM_PREFIX/bin/pnpm"
+NODE_TOOL_BIN="$NPM_PREFIX/node_modules/.bin"
+NPM_BIN="$NODE_TOOL_BIN/npm"
+PNPM_BIN="$NODE_TOOL_BIN/pnpm"
 
 require_cmd node
 require_cmd npm
@@ -101,7 +102,7 @@ if [[ "$run_install" -eq 1 ]]; then
   if [[ "$install_bun" -eq 1 && ! -x "$BUN_BIN" ]]; then
     require_cmd curl
     log "Installing Bun under $BUN_INSTALL_DIR"
-    curl -fsSL https://bun.sh/install | BUN_INSTALL="$BUN_INSTALL_DIR" bash
+    curl -fsSL https://bun.sh/install | BUN_INSTALL="$BUN_INSTALL_DIR" SHELL=/usr/bin/false bash
   elif [[ -x "$BUN_BIN" ]]; then
     log "Using Bun at $BUN_BIN"
   fi
@@ -139,7 +140,7 @@ fi
   printf 'export BUN_INSTALL=%q\n' "$BUN_INSTALL_DIR"
   printf 'export STONEFORGE_SF_BIN=%q\n' "$REPO_ROOT/packages/smithy/dist/bin/sf.js"
   printf 'export XLOTYL_DECISION_MODULE=%q\n' "$XLOTYL_ROOT/services/core-dev-services/dist/stoneforge/daemon-decision.js"
-  printf 'export PATH=%q:%q:"$PATH"\n' "$NPM_PREFIX/bin" "$BUN_INSTALL_DIR/bin"
+  printf 'export PATH=%q:%q:"$PATH"\n' "$NODE_TOOL_BIN" "$BUN_INSTALL_DIR/bin"
 } > "$ENV_FILE"
 
 log "Wrote $ENV_FILE"
